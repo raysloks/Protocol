@@ -19,8 +19,7 @@ void CppGenerator::generate(const std::filesystem::path & folder, const std::map
 			{
 				f << "#include <" << dependency << ">" << std::endl;
 			}
-			if (type.second.system_dependencies.size())
-				f << std::endl;
+			f << "#include <iostream>" << std::endl << std::endl;
 
 			for (auto dependency : type.second.dependencies)
 			{
@@ -59,8 +58,8 @@ void CppGenerator::generate(const std::filesystem::path & folder, const std::map
 			if (type.second.fields.size())
 				f << std::endl;
 
-			f << "	void serialize(ostream& os) const;" << std::endl;
-			f << "	void deserialize(istream& is);" << std::endl;
+			f << "	void serialize(std::ostream& os) const;" << std::endl;
+			f << "	void deserialize(std::istream& is);" << std::endl;
 
 			f << "};" << std::endl;
 
@@ -83,7 +82,7 @@ void CppGenerator::generate(const std::filesystem::path & folder, const std::map
 			if (type.second.delayed_dependencies.size())
 				f << std::endl;
 
-			f << "void " << type.first << "::serialize(ostream& os) const" << std::endl;
+			f << "void " << type.first << "::serialize(std::ostream& os) const" << std::endl;
 			f << "{" << std::endl;
 
 			if (type.second.flat())
@@ -141,7 +140,7 @@ void CppGenerator::generate(const std::filesystem::path & folder, const std::map
 
 			f << "}" << std::endl << std::endl;
 
-			f << "void " << type.first << "::deserialize(istream& is)" << std::endl;
+			f << "void " << type.first << "::deserialize(std::istream& is)" << std::endl;
 			f << "{" << std::endl;
 
 			if (type.second.flat())
@@ -216,24 +215,35 @@ void CppGenerator::generate(const std::filesystem::path & folder, const std::map
 		if (types.size())
 			f << std::endl;
 
+		f << "class " << protocol.name << "Handler;" << std::endl << std::endl;
+
 		f << "class Link" << std::endl;
 		f << "{" << std::endl;
 		f << "public:" << std::endl;
 
+		f << "	" << protocol.name << "Handler * handler;" << std::endl;
+
+		f << "	Link();" << std::endl;
+
 		f << "	void Open(const asio::ip::udp::endpoint& endpoint);" << std::endl;
+
+		f << "	void Receive();" << std::endl;
+
+		f << "	void Dispatch(asio::streambuf& buffer, const asio::ip::udp::endpoint& endpoint) const;" << std::endl;
 
 		for (auto type : types) // TODO only message types
 		{
-			f << "	void Send(const asio::ip::udp::endpoint& endpoint, const " << type.first << "& message) const;" << std::endl;
+			f << "	void Send(const asio::ip::udp::endpoint& endpoint, const " << type.first << "& message);" << std::endl;
 		}
 
 		f << "	static const uint32_t crc = 0x" << std::hex << protocol.crc << ";" << std::endl << std::dec;
 
 		f << "private:" << std::endl;
 
+		f << "	asio::io_context io_context;" << std::endl;
 		f << "	asio::ip::udp::socket socket;" << std::endl;
 
-		f << "}" << std::endl;
+		f << "};" << std::endl;
 
 		f.close();
 	}
@@ -245,15 +255,37 @@ void CppGenerator::generate(const std::filesystem::path & folder, const std::map
 
 		f << "// WARNING : Auto-generated file, changes made will disappear when re-generated." << std::endl << std::endl;
 
-		//f << "#include \"ProtocolMessageHandler.h\"" << std::endl << std::endl;
+		f << "// Application should implement this class using the prototypes in HandlerPrototypes.h" << std::endl;
+		f << "#include \"../" << protocol.name << "Handler.h\"" << std::endl << std::endl;
+
+		f << "Link::Link() : io_context(), socket(io_context)" << std::endl;
+		f << "{" << std::endl;
+		f << "}" << std::endl << std::endl;
 
 		f << "void Link::Open(const asio::ip::udp::endpoint& endpoint)" << std::endl;
 		f << "{" << std::endl;
+		f << "	socket.open(endpoint.protocol());" << std::endl;
 		f << "	socket.bind(endpoint);" << std::endl;
 		f << "}" << std::endl << std::endl;
 
+		f << "void Link::Receive()" << std::endl;
+		f << "{" << std::endl;
+		f << "	std::thread t([this]()" << std::endl;
+		f << "		{" << std::endl;
+		f << "			asio::streambuf buffer(65507); " << std::endl;
+		f << "			asio::ip::udp::endpoint endpoint;" << std::endl;
+		f << "			while (true)" << std::endl;
+		f << "			{" << std::endl;
+		f << "				buffer.commit(socket.receive_from(buffer.prepare(65507), endpoint));" << std::endl;
+		f << "				Dispatch(buffer, endpoint);" << std::endl;
+		f << "			}" << std::endl;
+		f << "		}" << std::endl;
+		f << "	);" << std::endl;
+		f << "	t.detach();" << std::endl;
+		f << "}" << std::endl << std::endl;
+
 		{
-			f << "void Link::Dispatch(const asio::ip::udp::endpoint& endpoint) const" << std::endl;
+			f << "void Link::Dispatch(asio::streambuf& buffer, const asio::ip::udp::endpoint& endpoint) const" << std::endl;
 			f << "{" << std::endl;
 			f << "	std::istream is(&buffer);" << std::endl;
 			f << "	switch (is.get())" << std::endl;
@@ -262,13 +294,18 @@ void CppGenerator::generate(const std::filesystem::path & folder, const std::map
 			uint8_t message_index = 0;
 			for (auto type : types) // TODO only message types
 			{
-				f << "	case " << message_index << ":" << std::endl;
+				f << "	case " << std::to_string(message_index) << ":" << std::endl;
 				f << "	{" << std::endl;
 				f << "		" << type.first << " message;" << std::endl;
 				f << "		message.deserialize(is);" << std::endl;
+				f << "		handler->" << type.first << "Handler(endpoint, message);" << std::endl;
+				f << "		break;" << std::endl;
 				f << "	}" << std::endl;
 				++message_index;
 			}
+
+			f << "	default:" << std::endl;
+			f << "		break;" << std::endl;
 
 			f << "	}" << std::endl;
 			f << "}" << std::endl << std::endl;
@@ -278,16 +315,27 @@ void CppGenerator::generate(const std::filesystem::path & folder, const std::map
 			uint8_t message_index = 0;
 			for (auto type : types) // TODO only message types
 			{
-				f << "void Link::Send(const asio::ip::udp::endpoint& endpoint, const " << type.first << "& message) const" << std::endl;
+				f << "void Link::Send(const asio::ip::udp::endpoint& endpoint, const " << type.first << "& message)" << std::endl;
 				f << "{" << std::endl;
-				f << "	asio::streambuf buffer;" << std::endl;
-				f << "	std::ostream os(&buffer);" << std::endl;
-				f << "	os.put(" << message_index << ");" << std::endl;
+				f << "	std::shared_ptr<asio::streambuf> buffer = std::make_shared<asio::streambuf>();" << std::endl;
+				f << "	std::ostream os(buffer.get());" << std::endl;
+				f << "	os.put(" << std::to_string(message_index) << ");" << std::endl;
 				f << "	message.serialize(os);" << std::endl;
-				f << "	socket.async_send_to(buffer.data(), endpoint, [](const asio::error_code&, size_t) {});" << std::endl;
+				f << "	socket.async_send_to(buffer->data(), endpoint, [buffer](const asio::error_code&, size_t) {});" << std::endl;
 				f << "}" << std::endl << std::endl;
 				++message_index;
 			}
+		}
+
+		f.close();
+	}
+
+	{
+		std::ofstream f(destination_path / "HandlerPrototypes.h");
+
+		for (auto type : types) // TODO only message types
+		{
+			f << "	void " << type.first << "Handler(const asio::ip::udp::endpoint& endpoint, const " << type.first << "& message);" << std::endl;
 		}
 
 		f.close();

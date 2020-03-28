@@ -1,3 +1,6 @@
 float health_values[]
 Upper * target
 Test peeps[]
+int32 hoho
+int64 muh_dick
+Upper testero[]

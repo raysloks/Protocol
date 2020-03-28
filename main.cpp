@@ -15,6 +15,7 @@
 #include "Crc32.h"
 
 #include "CppGenerator.h"
+#include "CsGenerator.h"
 
 int main()
 {
@@ -25,15 +26,12 @@ int main()
 	std::map<std::string, Structure> types;
 
 	Protocol protocol;
+	protocol.name = "MobPos";
+	protocol.prefix = "Mp";
 
-	std::string last_build_data_filename = "last_build.txt";
-
-	auto path = std::filesystem::path("test/");
+	auto path = std::filesystem::path("MobPos/");
 	for (const auto & entry : std::filesystem::directory_iterator(path))
 	{
-		if (entry.path().filename() == last_build_data_filename)
-			continue;
-
 		std::ifstream f(entry.path());
 
 		Structure type;
@@ -166,37 +164,11 @@ int main()
 
 	std::string build_data = oss.str();
 
-	{
-		std::ifstream f(path / last_build_data_filename, std::ios::in | std::ios::binary);
-		if (f)
-		{
-			std::string data;
-			f.seekg(0, std::ios::end);
-			data.resize(f.tellg());
-			f.seekg(0, std::ios::beg);
-			f.read(&data[0], data.size());
-			f.close();
-
-			if (data == build_data)
-			{
-				std::cout << "No changes detected, skipping protocol code generation." << std::endl;
-				return 0;
-			}
-		}
-	}
-
-	{
-		std::ofstream f(path / last_build_data_filename, std::ios::out | std::ios::binary);
-		if (f)
-		{
-			f.write(build_data.data(), build_data.size());
-			f.close();
-		}
-	}
-
 	protocol.crc = crc32(build_data);
 
-	std::unique_ptr<Generator> generator = std::make_unique<CppGenerator>();
+	std::unique_ptr<Generator> cpp_generator = std::make_unique<CppGenerator>();
+	cpp_generator->generate_if_new("C:/Users/Emil/source/repos/Project4/Project4/MobPos", types, protocol, build_data);
 
-	generator->generate("dest/", types, protocol);
+	std::unique_ptr<Generator> cs_generator = std::make_unique<CsGenerator>();
+	cs_generator->generate_if_new("C:/Users/Emil/Controllers/Assets/Scripts/MobPos/", types, protocol, build_data);
 }

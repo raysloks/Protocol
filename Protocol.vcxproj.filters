@@ -39,6 +39,12 @@
     <ClCompile Include="Crc32.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="CsGenerator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Generator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Structure.h">
@@ -63,6 +69,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Crc32.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CsGenerator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

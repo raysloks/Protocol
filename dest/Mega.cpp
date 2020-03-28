@@ -28,6 +28,13 @@ void Mega::serialize(ostream& os) const
 		os.write((char*)&size, sizeof(size));
 		os.write((char*)&this->peeps.data(), sizeof(Test) * size);
 	}
+	os.write((char*)&hoho, sizeof(hoho));
+	os.write((char*)&muh_dick, sizeof(muh_dick));
+	{
+		uint16_t size = this->testero.size();
+		os.write((char*)&size, sizeof(size));
+		os.write((char*)&this->testero.data(), sizeof(Upper) * size);
+	}
 }
 
 void Mega::deserialize(istream& is)
@@ -48,6 +55,14 @@ void Mega::deserialize(istream& is)
 		is.read((char*)&size, sizeof(size));
 		this->peeps.resize(size);
 		is.read((char*)&this->peeps.data(), sizeof(Test) * size);
+	}
+	is.read((char*)&hoho, sizeof(hoho));
+	is.read((char*)&muh_dick, sizeof(muh_dick));
+	{
+		uint16_t size;
+		is.read((char*)&size, sizeof(size));
+		this->testero.resize(size);
+		is.read((char*)&this->testero.data(), sizeof(Upper) * size);
 	}
 }
 

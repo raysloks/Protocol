@@ -144,7 +144,9 @@
   <ItemGroup>
     <ClCompile Include="CppGenerator.cpp" />
     <ClCompile Include="Crc32.cpp" />
+    <ClCompile Include="CsGenerator.cpp" />
     <ClCompile Include="Field.cpp" />
+    <ClCompile Include="Generator.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Message.cpp" />
     <ClCompile Include="Protocol.cpp" />
@@ -154,6 +156,7 @@
   <ItemGroup>
     <ClInclude Include="CppGenerator.h" />
     <ClInclude Include="Crc32.h" />
+    <ClInclude Include="CsGenerator.h" />
     <ClInclude Include="Field.h" />
     <ClInclude Include="Generator.h" />
     <ClInclude Include="Message.h" />
