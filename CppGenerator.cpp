@@ -35,6 +35,7 @@ void CppGenerator::generate(const std::filesystem::path & folder, const std::map
 			if (type.second.delayed_dependencies.size())
 				f << std::endl;
 
+			f << "#pragma pack (1)" << std::endl; // make sure serialize/deserialize work as intended, TODO investigate performance
 			f << "class " << type.first << std::endl;
 			f << "{" << std::endl;
 

@@ -1,11 +1,7 @@
 ﻿  CppGenerator.cpp
-  CsGenerator.cpp
-  Generator.cpp
-  Protocol.cpp
-  main.cpp
   Generating code
-  6 of 1219 functions ( 0.5%) were compiled, the rest were copied from previous compilation.
+  1 of 1219 functions (<0.1%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
-    8 functions had inline decision re-evaluated but remain unchanged
+    0 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   Protocol.vcxproj -> C:\Users\Emil\source\repos\Protocol\x64\Release\Protocol.exe
