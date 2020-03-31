@@ -17,12 +17,14 @@
 #include "CppGenerator.h"
 #include "CsGenerator.h"
 
+const std::vector<std::string> basic_types = { "float", "double",
+	"int8", "int16", "int32", "int64",
+	"uint8", "uint16", "uint32", "uint64",
+	"string",
+	"vec2", "vec3", "vec4" };
+
 int main()
 {
-	std::map<std::string, std::string> basic_types = { {"float", "float"},
-		{"int8", "int8_t"}, {"int16", "int16_t"}, {"int32", "int32_t"}, {"int64", "int64_t"},
-		{"uint8", "uint8_t"}, {"uint16", "uint16_t"}, {"uint32", "uint32_t"}, {"uint64", "uint64_t"} };
-
 	std::map<std::string, Structure> types;
 
 	Protocol protocol;
@@ -123,10 +125,17 @@ int main()
 				continue;
 			}
 
-			auto basic_type_found = basic_types.find(field.type_name);
+			auto basic_type_found = std::find(basic_types.begin(), basic_types.end(), field.type_name);
 			if (basic_type_found != basic_types.end())
 			{
-				field.type_name = basic_type_found->second;
+				if (field.type_name == "string")
+					type.second.system_dependencies.insert("string");
+				if (field.type_name == "vec2")
+					type.second.application_dependencies.insert("Vec2");
+				if (field.type_name == "vec3")
+					type.second.application_dependencies.insert("Vec3");
+				if (field.type_name == "vec4")
+					type.second.application_dependencies.insert("Vec4");
 				continue;
 			}
 

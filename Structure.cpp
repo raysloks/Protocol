@@ -8,12 +8,7 @@ bool Structure::operator==(const Structure& rhs) const
 bool Structure::flat() const
 {
 	for (auto field : fields)
-	{
-		if (field.special != FS_NONE)
+		if (!field.flat())
 			return false;
-		if (field.type)
-			if (!field.type->flat())
-				return false;
-	}
 	return true;
 }

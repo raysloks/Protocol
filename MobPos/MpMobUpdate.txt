@@ -1,2 +1,4 @@
 uint16 id
-MpPosition position
+vec3 position
+float rotation
+MpAttachment * grab

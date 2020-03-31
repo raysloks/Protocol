@@ -1,0 +1,2 @@
+MpGuid guid
+MpPosition offset

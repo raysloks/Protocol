@@ -20,5 +20,7 @@ public:
 	Structure * type;
 
 	bool operator==(const Field& rhs) const;
+
+	bool flat() const;
 };
 

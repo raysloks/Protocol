@@ -10,7 +10,7 @@ class Structure
 public:
 	std::vector<Field> fields;
 
-	std::set<std::string> dependencies, delayed_dependencies, system_dependencies;
+	std::set<std::string> dependencies, delayed_dependencies, system_dependencies, application_dependencies;
 
 	bool operator==(const Structure& rhs) const;
 

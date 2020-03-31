@@ -2,6 +2,128 @@
 
 #include <fstream>
 
+std::map<std::string, std::string> basic_translations = { {"float", "float"}, {"double", "double"},
+	{"int8", "int8_t"}, {"int16", "int16_t"}, {"int32", "int32_t"}, {"int64", "int64_t"},
+	{"uint8", "uint8_t"}, {"uint16", "uint16_t"}, {"uint32", "uint32_t"}, {"uint64", "uint64_t"},
+	{"string", "std::string"},
+	{"vec2", "Vec2"}, {"vec3", "Vec3"}, {"vec4", "Vec4"} };
+
+std::string translateCpp(const std::string& type)
+{
+	auto i = basic_translations.find(type);
+	if (i != basic_translations.end())
+		return i->second;
+	return type;
+}
+
+void serializeFieldCpp(std::ofstream& f, Field field)
+{
+	switch (field.special)
+	{
+	case FS_NONE:
+		if (field.type)
+		{
+			if (!field.type->flat())
+			{
+				f << "	" << field.name << ".serialize(os);" << std::endl;
+				break;
+			}
+		}
+		if (field.type_name == "string")
+		{
+			f << "	{" << std::endl;
+			f << "		uint16_t size = this->" << field.name << ".size();" << std::endl;
+			f << "		os.write((char*)&size, sizeof(size));" << std::endl;
+			f << "		os.write((char*)this->" << field.name << ".data(), size);" << std::endl;
+			f << "	}" << std::endl;
+			break;
+		}
+		f << "	os.write((char*)&" << field.name << ", (sizeof(" << field.name << ") + 3) / 4 * 4);" << std::endl;
+		break;
+	case FS_POINTER:
+		f << "	if (" << field.name << ")" << std::endl;
+		f << "	{" << std::endl;
+		f << "		os.put(true);" << std::endl;
+		f << "		" << field.name << "->serialize(os);" << std::endl;
+		f << "	}" << std::endl;
+		f << "	else" << std::endl;
+		f << "	{" << std::endl;
+		f << "		os.put(false);" << std::endl;
+		f << "	}" << std::endl;
+		break;
+	case FS_VECTOR:
+		f << "	{" << std::endl;
+		f << "		uint16_t size = this->" << field.name << ".size();" << std::endl;
+		f << "		os.write((char*)&size, sizeof(size));" << std::endl;
+		if (field.type)
+		{
+			if (!field.type->flat())
+			{
+				f << "		for (size_t i = 0; i < size; ++i)" << std::endl;
+				f << "			this->" << field.name << "[i]->serialize(os);" << std::endl;
+				f << "	}" << std::endl;
+				break;
+			}
+		}
+		f << "		os.write((char*)&this->" << field.name << ".data(), sizeof(" << field.type_name << ") * size);" << std::endl;
+		f << "	}" << std::endl;
+		break;
+	}
+}
+
+void deserializeFieldCpp(std::ofstream& f, Field field)
+{
+	switch (field.special)
+	{
+	case FS_NONE:
+		if (field.type)
+		{
+			if (!field.type->flat())
+			{
+				f << "	" << field.name << ".deserialize(is);" << std::endl;
+				break;
+			}
+		}
+		if (field.type_name == "string")
+		{
+			f << "	{" << std::endl;
+			f << "		uint16_t size;" << std::endl;
+			f << "		is.read((char*)&size, sizeof(size));" << std::endl;
+			f << "		this->" << field.name << ".resize(size);" << std::endl;
+			f << "		is.read((char*)this->" << field.name << ".data(), size);" << std::endl;
+			f << "	}" << std::endl;
+			break;
+		}
+		f << "	is.read((char*)&" << field.name << ", (sizeof(" << field.name << ") + 3) / 4 * 4);" << std::endl;
+		break;
+	case FS_POINTER:
+		f << "	if (is.get())" << std::endl;
+		f << "	{" << std::endl;
+		f << "		" << field.name << " = std::make_unique<" << field.type_name << ">();" << std::endl;
+		f << "		" << field.name << "->deserialize(is);" << std::endl;
+		f << "	}" << std::endl;
+		break;
+	case FS_VECTOR:
+		f << "	{" << std::endl;
+		f << "		uint16_t size;" << std::endl;
+		f << "		is.read((char*)&size, sizeof(size));" << std::endl;
+		f << "		this->" << field.name << ".resize(size);" << std::endl;
+		if (field.type)
+		{
+			if (!field.type->flat())
+			{
+				f << "		for (size_t i = 0; i < size; ++i)" << std::endl;
+				f << "			this->" << field.name << "[i]->deserialize(is);" << std::endl;
+				f << "	}" << std::endl;
+				break;
+			}
+		}
+		f << "		is.read((char*)&this->" << field.name << ".data(), sizeof(" << field.type_name << ") * size);" << std::endl;
+		f << "	}" << std::endl;
+		break;
+	}
+}
+
 void CppGenerator::generate(const std::filesystem::path & folder, const std::map<std::string, Structure>& types, const Protocol& protocol) const
 {
 	auto destination_path = folder;
@@ -25,7 +147,11 @@ void CppGenerator::generate(const std::filesystem::path & folder, const std::map
 			{
 				f << "#include \"" << dependency << ".h\"" << std::endl;
 			}
-			if (type.second.dependencies.size())
+			for (auto dependency : type.second.application_dependencies)
+			{
+				f << "#include \"../" << dependency << ".h\"" << std::endl;
+			}
+			if (type.second.dependencies.size() + type.second.application_dependencies.size())
 				f << std::endl;
 
 			for (auto dependency : type.second.delayed_dependencies)
@@ -35,7 +161,6 @@ void CppGenerator::generate(const std::filesystem::path & folder, const std::map
 			if (type.second.delayed_dependencies.size())
 				f << std::endl;
 
-			f << "#pragma pack (1)" << std::endl; // make sure serialize/deserialize work as intended, TODO investigate performance
 			f << "class " << type.first << std::endl;
 			f << "{" << std::endl;
 
@@ -46,13 +171,13 @@ void CppGenerator::generate(const std::filesystem::path & folder, const std::map
 				switch (field.special)
 				{
 				case FS_NONE:
-					f << "	" << field.type_name << " " << field.name << ";" << std::endl;
+					f << "	" << translateCpp(field.type_name) << " " << field.name << ";" << std::endl;
 					break;
 				case FS_POINTER:
-					f << "	std::unique_ptr<" << field.type_name << "> " << field.name << ";" << std::endl;
+					f << "	std::unique_ptr<" << translateCpp(field.type_name) << "> " << field.name << ";" << std::endl;
 					break;
 				case FS_VECTOR:
-					f << "	std::vector<" << field.type_name << "> " << field.name << ";" << std::endl;
+					f << "	std::vector<" << translateCpp(field.type_name) << "> " << field.name << ";" << std::endl;
 					break;
 				}
 			}
@@ -94,48 +219,7 @@ void CppGenerator::generate(const std::filesystem::path & folder, const std::map
 			{
 				for (auto field : type.second.fields)
 				{
-					switch (field.special)
-					{
-					case FS_NONE:
-						if (field.type)
-						{
-							if (!field.type->flat())
-							{
-								f << "	" << field.name << ".serialize(os);" << std::endl;
-								break;
-							}
-						}
-						f << "	os.write((char*)&" << field.name << ", sizeof(" << field.name << "));" << std::endl;
-						break;
-					case FS_POINTER:
-						f << "	if (" << field.name << ")" << std::endl;
-						f << "	{" << std::endl;
-						f << "		os.put(true);" << std::endl;
-						f << "		" << field.name << "->serialize(os);" << std::endl;
-						f << "	}" << std::endl;
-						f << "	else" << std::endl;
-						f << "	{" << std::endl;
-						f << "		os.put(false);" << std::endl;
-						f << "	}" << std::endl;
-						break;
-					case FS_VECTOR:
-						f << "	{" << std::endl;
-						f << "		uint16_t size = this->" << field.name << ".size();" << std::endl;
-						f << "		os.write((char*)&size, sizeof(size));" << std::endl;
-						if (field.type)
-						{
-							if (!field.type->flat())
-							{
-								f << "		for (size_t i = 0; i < size; ++i)" << std::endl;
-								f << "			this->" << field.name << "[i]->serialize(os);" << std::endl;
-								f << "	}" << std::endl;
-								break;
-							}
-						}
-						f << "		os.write((char*)&this->" << field.name << ".data(), sizeof(" << field.type_name << ") * size);" << std::endl;
-						f << "	}" << std::endl;
-						break;
-					}
+					serializeFieldCpp(f, field);
 				}
 			}
 
@@ -152,45 +236,7 @@ void CppGenerator::generate(const std::filesystem::path & folder, const std::map
 			{
 				for (auto field : type.second.fields)
 				{
-					switch (field.special)
-					{
-					case FS_NONE:
-						if (field.type)
-						{
-							if (!field.type->flat())
-							{
-								f << "	" << field.name << ".deserialize(is);" << std::endl;
-								break;
-							}
-						}
-						f << "	is.read((char*)&" << field.name << ", sizeof(" << field.name << "));" << std::endl;
-						break;
-					case FS_POINTER:
-						f << "	if (is.get())" << std::endl;
-						f << "	{" << std::endl;
-						f << "		" << field.name << " = std::make_unique<" << field.type_name << ">();" << std::endl;
-						f << "		" << field.name << "->deserialize(is);" << std::endl;
-						f << "	}" << std::endl;
-						break;
-					case FS_VECTOR:
-						f << "	{" << std::endl;
-						f << "		uint16_t size;" << std::endl;
-						f << "		is.read((char*)&size, sizeof(size));" << std::endl;
-						f << "		this->" << field.name << ".resize(size);" << std::endl;
-						if (field.type)
-						{
-							if (!field.type->flat())
-							{
-								f << "		for (size_t i = 0; i < size; ++i)" << std::endl;
-								f << "			this->" << field.name << "[i]->deserialize(is);" << std::endl;
-								f << "	}" << std::endl;
-								break;
-							}
-						}
-						f << "		is.read((char*)&this->" << field.name << ".data(), sizeof(" << field.type_name << ") * size);" << std::endl;
-						f << "	}" << std::endl;
-						break;
-					}
+					deserializeFieldCpp(f, field);
 				}
 			}
 
