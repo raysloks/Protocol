@@ -233,6 +233,9 @@ void CsGenerator::generate(const std::filesystem::path& folder, const std::map<s
 		f.close();
 	}
 
+	bool can_connect = true;
+	bool can_accept = true;
+
 	{
 		std::ofstream f(destination_path / "Link.cs");
 
@@ -270,19 +273,57 @@ void CsGenerator::generate(const std::filesystem::path& folder, const std::map<s
 		f << "		});" << std::endl;
 		f << "	}" << std::endl << std::endl;
 
-		uint8_t message_index = 0;
-		for (auto type : types) // TODO only message types
+		if (can_connect)
 		{
-			f << "	public void Send(IPEndPoint endpoint, in " << type.first << " message)" << std::endl;
+			f << "	public IPEndPoint endpoint;" << std::endl << std::endl;
+
+			f << "	public void Connect(IPEndPoint endpoint)" << std::endl;
 			f << "	{" << std::endl;
 			f << "		MemoryStream stream = new MemoryStream();" << std::endl;
 			f << "		BinaryWriter writer = new BinaryWriter(stream);" << std::endl;
-			f << "		writer.Write((byte)" << std::to_string(message_index) << ");" << std::endl;
-			f << "		message.Serialize(writer);" << std::endl;
+			f << "		writer.Write((byte)0);" << std::endl;
+			f << "		writer.Write(crc);" << std::endl;
+			f << "		writer.Write((byte)0);" << std::endl;
 			f << "		byte[] bytes = stream.ToArray();" << std::endl;
 			f << "		client.SendAsync(bytes, bytes.Length, endpoint);" << std::endl;
 			f << "	}" << std::endl << std::endl;
-			++message_index;
+		}
+
+		{
+			uint8_t message_index = 1;
+			for (auto type : types) // TODO only message types
+			{
+				f << "	public void Send(IPEndPoint endpoint, in " << type.first << " message)" << std::endl;
+				f << "	{" << std::endl;
+				f << "		MemoryStream stream = new MemoryStream();" << std::endl;
+				f << "		BinaryWriter writer = new BinaryWriter(stream);" << std::endl;
+				f << "		writer.Write((byte)" << std::to_string(message_index) << ");" << std::endl;
+				f << "		message.Serialize(writer);" << std::endl;
+				f << "		byte[] bytes = stream.ToArray();" << std::endl;
+				f << "		client.SendAsync(bytes, bytes.Length, endpoint);" << std::endl;
+				f << "	}" << std::endl << std::endl;
+				++message_index;
+			}
+		}
+
+		if (can_connect)
+		{
+			uint8_t message_index = 1;
+			for (auto type : types) // TODO only message types
+			{
+				f << "	public void Send(in " << type.first << " message)" << std::endl;
+				f << "	{" << std::endl;
+				f << "		if (endpoint == null)" << std::endl; // perhaps there is a better solution?
+				f << "			return;" << std::endl;
+				f << "		MemoryStream stream = new MemoryStream();" << std::endl;
+				f << "		BinaryWriter writer = new BinaryWriter(stream);" << std::endl;
+				f << "		writer.Write((byte)" << std::to_string(message_index) << ");" << std::endl;
+				f << "		message.Serialize(writer);" << std::endl;
+				f << "		byte[] bytes = stream.ToArray();" << std::endl;
+				f << "		client.SendAsync(bytes, bytes.Length, endpoint);" << std::endl;
+				f << "	}" << std::endl << std::endl;
+				++message_index;
+			}
 		}
 
 		{
@@ -292,16 +333,55 @@ void CsGenerator::generate(const std::filesystem::path& folder, const std::map<s
 			f << "		switch (reader.ReadByte())" << std::endl;
 			f << "		{" << std::endl;
 
-			uint8_t message_index = 0;
-			for (auto type : types) // TODO only message types
 			{
-				f << "		case " << std::to_string(message_index) << ":" << std::endl;
-				f << "		{" << std::endl;
-				f << "			" << type.first << " message = " << type.first << ".Deserialize(reader);" << std::endl;
-				f << "			message_queue.Enqueue(() => handler." << type.first << "Handler(endpoint, message));" << std::endl;
-				f << "			break;" << std::endl;
-				f << "		}" << std::endl;
-				++message_index;
+				f << "			case 0:" << std::endl;
+				f << "			{" << std::endl;
+				f << "				uint remote_crc = reader.ReadUInt32();" << std::endl;
+				f << "				if (remote_crc != crc)" << std::endl;
+				f << "					break;" << std::endl;
+				f << "				switch (reader.ReadByte())" << std::endl;
+				f << "				{" << std::endl;
+				f << "					case 0:" << std::endl;
+				f << "					{" << std::endl;
+				if (can_accept)
+				{
+					f << "						MemoryStream stream = new MemoryStream();" << std::endl;
+					f << "						BinaryWriter writer = new BinaryWriter(stream);" << std::endl;
+					f << "						writer.Write((byte)0);" << std::endl;
+					f << "						writer.Write(crc);" << std::endl;
+					f << "						writer.Write((byte)1);" << std::endl;
+					f << "						byte[] out_bytes = stream.ToArray();" << std::endl;
+					f << "						client.SendAsync(out_bytes, out_bytes.Length, endpoint);" << std::endl;
+				}
+				f << "						break;" << std::endl;
+				f << "					}" << std::endl;
+				f << "					case 1:" << std::endl;
+				f << "					{" << std::endl;
+				if (can_connect)
+				{
+					f << "						this.endpoint = endpoint;" << std::endl;
+				}
+				f << "						break;" << std::endl;
+				f << "					}" << std::endl;
+				f << "					default:" << std::endl;
+				f << "						break;" << std::endl;
+				f << "				}" << std::endl;
+				f << "				break;" << std::endl;
+				f << "			}" << std::endl;
+			}
+
+			{
+				uint8_t message_index = 1;
+				for (auto type : types) // TODO only message types
+				{
+					f << "		case " << std::to_string(message_index) << ":" << std::endl;
+					f << "		{" << std::endl;
+					f << "			" << type.first << " message = " << type.first << ".Deserialize(reader);" << std::endl;
+					f << "			message_queue.Enqueue(() => handler." << type.first << "Handler(endpoint, message));" << std::endl;
+					f << "			break;" << std::endl;
+					f << "		}" << std::endl;
+					++message_index;
+				}
 			}
 
 			f << "		default:" << std::endl;

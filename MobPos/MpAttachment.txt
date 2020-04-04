@@ -1,2 +1,2 @@
 MpGuid guid
-MpPosition offset
+vec3 offset

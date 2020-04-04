@@ -246,6 +246,8 @@ void CppGenerator::generate(const std::filesystem::path & folder, const std::map
 		}
 	}
 
+	bool can_accept = true;
+
 	{
 		std::ofstream f(destination_path / "Link.h");
 
@@ -276,7 +278,7 @@ void CppGenerator::generate(const std::filesystem::path & folder, const std::map
 
 		f << "	void Receive();" << std::endl;
 
-		f << "	void Dispatch(asio::streambuf& buffer, const asio::ip::udp::endpoint& endpoint) const;" << std::endl;
+		f << "	void Dispatch(asio::streambuf& buffer, const asio::ip::udp::endpoint& endpoint);" << std::endl;
 
 		for (auto type : types) // TODO only message types
 		{
@@ -332,23 +334,58 @@ void CppGenerator::generate(const std::filesystem::path & folder, const std::map
 		f << "}" << std::endl << std::endl;
 
 		{
-			f << "void Link::Dispatch(asio::streambuf& buffer, const asio::ip::udp::endpoint& endpoint) const" << std::endl;
+			f << "void Link::Dispatch(asio::streambuf& buffer, const asio::ip::udp::endpoint& endpoint)" << std::endl;
 			f << "{" << std::endl;
 			f << "	std::istream is(&buffer);" << std::endl;
 			f << "	switch (is.get())" << std::endl;
 			f << "	{" << std::endl;
 
-			uint8_t message_index = 0;
-			for (auto type : types) // TODO only message types
 			{
-				f << "	case " << std::to_string(message_index) << ":" << std::endl;
-				f << "	{" << std::endl;
-				f << "		" << type.first << " message;" << std::endl;
-				f << "		message.deserialize(is);" << std::endl;
-				f << "		handler->" << type.first << "Handler(endpoint, message);" << std::endl;
-				f << "		break;" << std::endl;
-				f << "	}" << std::endl;
-				++message_index;
+				f << "		case 0:" << std::endl;
+				f << "		{" << std::endl;
+				f << "			uint32_t remote_crc;" << std::endl;
+				f << "			is.read((char*)&remote_crc, sizeof(remote_crc));" << std::endl;
+				f << "			if (remote_crc != crc)" << std::endl;
+				f << "				break;" << std::endl;
+				f << "			switch (is.get())" << std::endl;
+				f << "			{" << std::endl;
+				f << "				case 0:" << std::endl;
+				f << "				{" << std::endl;
+				if (can_accept)
+				{
+					f << "					std::shared_ptr<asio::streambuf> buffer = std::make_shared<asio::streambuf>();" << std::endl;
+					f << "					std::ostream os(buffer.get());" << std::endl;
+					f << "					os.put(0);" << std::endl;
+					f << "					os.write((char*)&remote_crc, sizeof(remote_crc));" << std::endl;
+					f << "					os.put(1);" << std::endl;
+					f << "					socket.async_send_to(buffer->data(), endpoint, [buffer](const asio::error_code&, size_t) {});" << std::endl;
+				}
+				f << "					break;" << std::endl;
+				f << "				}" << std::endl;
+				f << "				case 1:" << std::endl;
+				f << "				{" << std::endl;
+				f << "					break;" << std::endl;
+				f << "				}" << std::endl;
+				f << "				default:" << std::endl;
+				f << "					break;" << std::endl;
+				f << "			}" << std::endl;
+				f << "			break;" << std::endl;
+				f << "		}" << std::endl;
+			}
+
+			{
+				uint8_t message_index = 1;
+				for (auto type : types) // TODO only message types
+				{
+					f << "	case " << std::to_string(message_index) << ":" << std::endl;
+					f << "	{" << std::endl;
+					f << "		" << type.first << " message;" << std::endl;
+					f << "		message.deserialize(is);" << std::endl;
+					f << "		handler->" << type.first << "Handler(endpoint, message);" << std::endl;
+					f << "		break;" << std::endl;
+					f << "	}" << std::endl;
+					++message_index;
+				}
 			}
 
 			f << "	default:" << std::endl;
@@ -359,7 +396,7 @@ void CppGenerator::generate(const std::filesystem::path & folder, const std::map
 		}
 
 		{
-			uint8_t message_index = 0;
+			uint8_t message_index = 1;
 			for (auto type : types) // TODO only message types
 			{
 				f << "void Link::Send(const asio::ip::udp::endpoint& endpoint, const " << type.first << "& message)" << std::endl;

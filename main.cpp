@@ -23,6 +23,8 @@ const std::vector<std::string> basic_types = { "float", "double",
 	"string",
 	"vec2", "vec3", "vec4" };
 
+const std::vector<std::string> qualifiers = { "up", "down" };
+
 int main()
 {
 	std::map<std::string, Structure> types;
@@ -44,6 +46,18 @@ int main()
 			std::istringstream iss(line);
 
 			auto tokens = extract_tokens(iss);
+
+			if (std::find(qualifiers.begin(), qualifiers.end(), tokens[0]) != qualifiers.end())
+			{
+				for (auto token : tokens)
+				{
+					if (token == "up")
+						type.up = true;
+					if (token == "down")
+						type.down = true;
+				}
+				continue;
+			}
 
 			Field field;
 
