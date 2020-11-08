@@ -142,6 +142,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Config.cpp" />
     <ClCompile Include="CppGenerator.cpp" />
     <ClCompile Include="Crc32.cpp" />
     <ClCompile Include="CsGenerator.cpp" />
@@ -154,6 +155,7 @@
     <ClCompile Include="Token.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Config.h" />
     <ClInclude Include="CppGenerator.h" />
     <ClInclude Include="Crc32.h" />
     <ClInclude Include="CsGenerator.h" />

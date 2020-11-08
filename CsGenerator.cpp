@@ -157,8 +157,8 @@ void deserializeFieldCs(std::ofstream& f, Field field)
 			f << "			" << field.type_name << " element;" << std::endl;
 		}
 		Field element = field;
-		field.name = "element";
-		field.special = FS_NONE;
+		element.name = "element";
+		element.special = FS_NONE;
 		deserializeFieldCs(f, element);
 		f << "			" << field.name << ".Add(element);" << std::endl;
 		f << "		}" << std::endl;
@@ -167,7 +167,7 @@ void deserializeFieldCs(std::ofstream& f, Field field)
 	}
 }
 
-void CsGenerator::generate(const std::filesystem::path& folder, const std::map<std::string, Structure>& types, const Protocol& protocol) const
+void CsGenerator::generate(const std::map<std::string, Structure>& types, const Protocol& protocol) const
 {
 	auto destination_path = folder;
 
@@ -250,7 +250,7 @@ void CsGenerator::generate(const std::filesystem::path& folder, const std::map<s
 		f << "public class Link" << std::endl;
 		f << "{" << std::endl;
 
-		f << "	public " << protocol.name << "Handler handler;" << std::endl << std::endl;
+		f << "	public " << protocol.handler << " handler;" << std::endl << std::endl;
 
 		f << "	public ConcurrentQueue<Action> message_queue = new ConcurrentQueue<Action>();" << std::endl << std::endl;
 

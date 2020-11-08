@@ -1,2 +1,0 @@
-MpGuid guid
-vec3 offset

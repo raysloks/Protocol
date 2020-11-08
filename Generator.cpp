@@ -5,7 +5,7 @@
 
 const std::string last_build_data_filename = "last_build.txt";
 
-void Generator::generate_if_new(const std::filesystem::path& folder, const std::map<std::string, Structure>& types, const Protocol& protocol, const std::string& build_data) const
+void Generator::generate_if_new(const std::map<std::string, Structure>& types, const Protocol& protocol, const std::string& build_data) const
 {
 	{
 		std::ifstream f(folder / last_build_data_filename, std::ios::in | std::ios::binary);
@@ -36,5 +36,5 @@ void Generator::generate_if_new(const std::filesystem::path& folder, const std::
 		}
 	}
 
-	generate(folder, types, protocol);
+	generate(types, protocol);
 }

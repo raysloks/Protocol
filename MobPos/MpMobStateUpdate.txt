@@ -1,0 +1,3 @@
+down
+uint64 sprite
+uint32 team
