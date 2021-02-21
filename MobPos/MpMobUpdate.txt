@@ -2,5 +2,6 @@ down
 uint64 id
 MpMobHealthUpdate * hp
 MpPath * path
-MobStatBlock * stats
+MpMobAurasUpdate * auras
 MpMobStateUpdate * state
+MpMobTypeUpdate * type

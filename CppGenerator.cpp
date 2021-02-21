@@ -23,6 +23,7 @@ void serializeFieldCpp(std::ofstream& f, Field field)
 	switch (field.special)
 	{
 	case FS_NONE:
+	{
 		if (field.type)
 		{
 			if (!field.type->flat())
@@ -34,44 +35,63 @@ void serializeFieldCpp(std::ofstream& f, Field field)
 		if (field.type_name == "string")
 		{
 			f << "	{" << std::endl;
-			f << "		uint16_t size = this->" << field.name << ".size();" << std::endl;
+			f << "		uint16_t size = " << field.name << ".size();" << std::endl;
 			f << "		os.write((char*)&size, sizeof(size));" << std::endl;
-			f << "		os.write((char*)this->" << field.name << ".data(), size);" << std::endl;
+			f << "		os.write((char*)" << field.name << ".data(), size);" << std::endl;
 			f << "	}" << std::endl;
 			break;
 		}
 		f << "	os.write((char*)&" << field.name << ", (sizeof(" << field.name << ") + 3) / 4 * 4);" << std::endl;
-		break;
+	}
+	break;
 	case FS_POINTER:
+	{
 		f << "	if (" << field.name << ")" << std::endl;
 		f << "	{" << std::endl;
 		f << "		os.put(true);" << std::endl;
-		if (field.type && !field.type->flat())
-			f << "		this->" << field.name << "->serialize(os);" << std::endl;
+		Field value = field;
+		value.name = "value";
+		value.special = FS_NONE;
+		if (value.flat())
+		{
+			f << "		os.write((char*)" << field.name << ".get(), sizeof(" << translateCpp(field.type_name) << "));" << std::endl;
+		}
 		else
-			f << "		os.write((char*)this->" << field.name << ".get(), sizeof(" << translateCpp(field.type_name) << "));" << std::endl;
+		{
+			f << "		auto&& value = *" << field.name << ";" << std::endl;
+			serializeFieldCpp(f, value);
+		}
 		f << "	}" << std::endl;
 		f << "	else" << std::endl;
 		f << "	{" << std::endl;
 		f << "		os.put(false);" << std::endl;
 		f << "	}" << std::endl;
-		break;
+	}
+	break;
 	case FS_VECTOR:
+	{
 		f << "	{" << std::endl;
-		f << "		uint16_t size = this->" << field.name << ".size();" << std::endl;
+		f << "		uint16_t size = " << field.name << ".size();" << std::endl;
 		f << "		os.write((char*)&size, sizeof(size));" << std::endl;
-		if (field.type && !field.type->flat())
+		Field element = field;
+		element.name = "element";
+		element.special = FS_NONE;
+		if (element.flat())
 		{
-			f << "		for (size_t i = 0; i < size; ++i)" << std::endl;
-			f << "			this->" << field.name << "[i].serialize(os);" << std::endl;
+			// TODO add static assert that type is trivially copyable
+			f << "		os.write((char*)" << field.name << ".data(), sizeof(" << translateCpp(field.type_name) << ") * size);" << std::endl;
 		}
 		else
 		{
-			// TODO add static assert that type is trivially copyable
-			f << "		os.write((char*)this->" << field.name << ".data(), sizeof(" << translateCpp(field.type_name) << ") * size);" << std::endl;
+			f << "		for (size_t i = 0; i < size; ++i)" << std::endl;
+			f << "		{" << std::endl;
+			f << "			auto&& element = " << field.name << "[i];" << std::endl;
+			serializeFieldCpp(f, element);
+			f << "		}" << std::endl;
 		}
 		f << "	}" << std::endl;
-		break;
+	}
+	break;
 	}
 }
 
@@ -80,6 +100,7 @@ void deserializeFieldCpp(std::ofstream& f, Field field)
 	switch (field.special)
 	{
 	case FS_NONE:
+	{
 		if (field.type)
 		{
 			if (!field.type->flat())
@@ -93,39 +114,58 @@ void deserializeFieldCpp(std::ofstream& f, Field field)
 			f << "	{" << std::endl;
 			f << "		uint16_t size;" << std::endl;
 			f << "		is.read((char*)&size, sizeof(size));" << std::endl;
-			f << "		this->" << field.name << ".resize(size);" << std::endl;
-			f << "		is.read((char*)this->" << field.name << ".data(), size);" << std::endl;
+			f << "		" << field.name << ".resize(size);" << std::endl;
+			f << "		is.read((char*)" << field.name << ".data(), size);" << std::endl;
 			f << "	}" << std::endl;
 			break;
 		}
 		f << "	is.read((char*)&" << field.name << ", (sizeof(" << field.name << ") + 3) / 4 * 4);" << std::endl;
-		break;
+	}
+	break;
 	case FS_POINTER:
+	{
 		f << "	if (is.get())" << std::endl;
 		f << "	{" << std::endl;
 		f << "		" << field.name << " = std::make_unique<" << field.type_name << ">();" << std::endl;
-		if (field.type && !field.type->flat())
-			f << "		this->" << field.name << "->deserialize(is);" << std::endl;
+		Field value = field;
+		value.name = "value";
+		value.special = FS_NONE;
+		if (value.flat())
+		{
+			f << "		is.read((char*)" << field.name << ".get(), sizeof(" << translateCpp(field.type_name) << "));" << std::endl;
+		}
 		else
-			f << "		is.read((char*)this->" << field.name << ".get(), sizeof(" << translateCpp(field.type_name) << "));" << std::endl;
+		{
+			f << "		auto&& value = *" << field.name << ";" << std::endl;
+			deserializeFieldCpp(f, value);
+		}
 		f << "	}" << std::endl;
-		break;
+	}
+	break;
 	case FS_VECTOR:
+	{
 		f << "	{" << std::endl;
 		f << "		uint16_t size;" << std::endl;
 		f << "		is.read((char*)&size, sizeof(size));" << std::endl;
-		f << "		this->" << field.name << ".resize(size);" << std::endl;
-		if (field.type && !field.type->flat())
+		f << "		" << field.name << ".resize(size);" << std::endl;
+		Field element = field;
+		element.name = "element";
+		element.special = FS_NONE;
+		if (element.flat())
 		{
-			f << "		for (size_t i = 0; i < size; ++i)" << std::endl;
-			f << "			this->" << field.name << "[i].deserialize(is);" << std::endl;
+			f << "		is.read((char*)" << field.name << ".data(), sizeof(" << translateCpp(field.type_name) << ") * size);" << std::endl;
 		}
 		else
 		{
-			f << "		is.read((char*)this->" << field.name << ".data(), sizeof(" << translateCpp(field.type_name) << ") * size);" << std::endl;
+			f << "		for (size_t i = 0; i < size; ++i)" << std::endl;
+			f << "		{" << std::endl;
+			f << "			auto&& element = " << field.name << "[i];" << std::endl;
+			deserializeFieldCpp(f, element);
+			f << "		}" << std::endl;
 		}
 		f << "	}" << std::endl;
-		break;
+	}
+	break;
 	}
 }
 
@@ -231,6 +271,7 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 			{
 				for (auto field : type.second.fields)
 				{
+					field.name = "this->" + field.name;
 					serializeFieldCpp(f, field);
 				}
 			}
@@ -248,6 +289,7 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 			{
 				for (auto field : type.second.fields)
 				{
+					field.name = "this->" + field.name;
 					deserializeFieldCpp(f, field);
 				}
 			}

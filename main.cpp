@@ -134,7 +134,7 @@ int main()
 						}
 					};
 
-					if (field.special == FS_NONE)
+					if (field.special == FS_NONE || field.special == FS_VECTOR)
 					{
 						type.second.dependencies.insert(field.type_name);
 						func(*type_found);
