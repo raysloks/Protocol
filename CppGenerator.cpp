@@ -8,7 +8,9 @@ std::map<std::string, std::string> basic_translations = {
 	{"int8", "int8_t"}, {"int16", "int16_t"}, {"int32", "int32_t"}, {"int64", "int64_t"},
 	{"uint8", "uint8_t"}, {"uint16", "uint16_t"}, {"uint32", "uint32_t"}, {"uint64", "uint64_t"},
 	{"string", "std::string"},
-	{"vec2", "Vec2"}, {"vec3", "Vec3"}, {"vec4", "Vec4"} };
+	{"vec2", "Vec2"}, {"vec3", "Vec3"}, {"vec4", "Vec4"},
+	{"uuid", "boost::uuids::uuid"}
+};
 
 std::string translateCpp(const std::string& type)
 {
@@ -18,7 +20,7 @@ std::string translateCpp(const std::string& type)
 	return type;
 }
 
-void serializeFieldCpp(std::ofstream& f, Field field)
+void serializeFieldCpp(std::ofstream& f, Field field, const std::map<std::string, Structure>& types)
 {
 	switch (field.special)
 	{
@@ -41,31 +43,67 @@ void serializeFieldCpp(std::ofstream& f, Field field)
 			f << "	}" << std::endl;
 			break;
 		}
-		f << "	os.write((char*)&" << field.name << ", (sizeof(" << field.name << ") + 3) / 4 * 4);" << std::endl;
+		f << "	os.write((char*)&" << field.name << ", sizeof(" << field.name << "));" << std::endl;
 	}
 	break;
 	case FS_POINTER:
 	{
-		f << "	if (" << field.name << ")" << std::endl;
-		f << "	{" << std::endl;
-		f << "		os.put(true);" << std::endl;
-		Field value = field;
-		value.name = "value";
-		value.special = FS_NONE;
-		if (value.flat())
+		if (field.type && field.type->child_type_names.size() > 1)
 		{
-			f << "		os.write((char*)" << field.name << ".get(), sizeof(" << translateCpp(field.type_name) << "));" << std::endl;
+			f << "	if (" << field.name << ")" << std::endl;
+			f << "	{" << std::endl;
+			f << "		switch (" << field.name << "->getChildTypeIndex())" << std::endl;
+			f << "		{" << std::endl;
+			for (auto& child_type_name : field.type->child_type_names)
+			{
+				f << "			case " << types.at(child_type_name).child_type_index << ":" << std::endl;
+				f << "			{" << std::endl;
+				f << "				os.put(" << types.at(child_type_name).child_type_index << ");" << std::endl;
+				Field value = field;
+				value.name = "value";
+				value.special = FS_NONE;
+				if (value.flat())
+				{
+					f << "				os.write((char*)" << field.name << ".get() + sizeof(char*), sizeof(" << translateCpp(child_type_name) << ") - sizeof(char*));" << std::endl;
+				}
+				else
+				{
+					f << "				" << child_type_name << "& value = *" << field.name << ";" << std::endl;
+					serializeFieldCpp(f, value, types);
+				}
+				f << "				break;" << std::endl;
+				f << "			}" << std::endl;
+			}
+			f << "		}" << std::endl;
+			f << "	}" << std::endl;
+			f << "	else" << std::endl;
+			f << "	{" << std::endl;
+			f << "		os.put(0xff);" << std::endl;
+			f << "	}" << std::endl;
 		}
 		else
 		{
-			f << "		auto&& value = *" << field.name << ";" << std::endl;
-			serializeFieldCpp(f, value);
+			f << "	if (" << field.name << ")" << std::endl;
+			f << "	{" << std::endl;
+			f << "		os.put(true);" << std::endl;
+			Field value = field;
+			value.name = "value";
+			value.special = FS_NONE;
+			if (value.flat())
+			{
+				f << "		os.write((char*)" << field.name << ".get(), sizeof(" << translateCpp(field.type_name) << "));" << std::endl;
+			}
+			else
+			{
+				f << "		auto&& value = *" << field.name << ";" << std::endl;
+				serializeFieldCpp(f, value, types);
+			}
+			f << "	}" << std::endl;
+			f << "	else" << std::endl;
+			f << "	{" << std::endl;
+			f << "		os.put(false);" << std::endl;
+			f << "	}" << std::endl;
 		}
-		f << "	}" << std::endl;
-		f << "	else" << std::endl;
-		f << "	{" << std::endl;
-		f << "		os.put(false);" << std::endl;
-		f << "	}" << std::endl;
 	}
 	break;
 	case FS_VECTOR:
@@ -86,7 +124,7 @@ void serializeFieldCpp(std::ofstream& f, Field field)
 			f << "		for (size_t i = 0; i < size; ++i)" << std::endl;
 			f << "		{" << std::endl;
 			f << "			auto&& element = " << field.name << "[i];" << std::endl;
-			serializeFieldCpp(f, element);
+			serializeFieldCpp(f, element, types);
 			f << "		}" << std::endl;
 		}
 		f << "	}" << std::endl;
@@ -95,7 +133,7 @@ void serializeFieldCpp(std::ofstream& f, Field field)
 	}
 }
 
-void deserializeFieldCpp(std::ofstream& f, Field field)
+void deserializeFieldCpp(std::ofstream& f, Field field, const std::map<std::string, Structure>& types)
 {
 	switch (field.special)
 	{
@@ -119,27 +157,58 @@ void deserializeFieldCpp(std::ofstream& f, Field field)
 			f << "	}" << std::endl;
 			break;
 		}
-		f << "	is.read((char*)&" << field.name << ", (sizeof(" << field.name << ") + 3) / 4 * 4);" << std::endl;
+		f << "	is.read((char*)&" << field.name << ", sizeof(" << field.name << "));" << std::endl;
 	}
 	break;
 	case FS_POINTER:
 	{
-		f << "	if (is.get())" << std::endl;
-		f << "	{" << std::endl;
-		f << "		" << field.name << " = std::make_unique<" << field.type_name << ">();" << std::endl;
-		Field value = field;
-		value.name = "value";
-		value.special = FS_NONE;
-		if (value.flat())
+		if (field.type && field.type->child_type_names.size() > 1)
 		{
-			f << "		is.read((char*)" << field.name << ".get(), sizeof(" << translateCpp(field.type_name) << "));" << std::endl;
+			f << "	switch (is.get())" << std::endl;
+			f << "	{" << std::endl;
+			for (auto& child_type_name : field.type->child_type_names)
+			{
+				f << "		case " << types.at(child_type_name).child_type_index << ":" << std::endl;
+				f << "		{" << std::endl;
+				f << "			" << field.name << " = std::make_unique<" << child_type_name << ">();" << std::endl;
+				Field value = field;
+				value.name = "value";
+				value.special = FS_NONE;
+				if (value.flat())
+				{
+					f << "			is.read((char*)" << field.name << ".get() + sizeof(char*), sizeof(" << translateCpp(child_type_name) << ") - sizeof(char*));" << std::endl;
+				}
+				else
+				{
+					f << "			" << child_type_name << "& value = *" << field.name << ";" << std::endl;
+					deserializeFieldCpp(f, value, types);
+				}
+				f << "			break;" << std::endl;
+				f << "		}" << std::endl;
+			}
+			f << "		default:" << std::endl;
+			f << "			break;" << std::endl;
+			f << "	}" << std::endl;
 		}
 		else
 		{
-			f << "		auto&& value = *" << field.name << ";" << std::endl;
-			deserializeFieldCpp(f, value);
+			f << "	if (is.get())" << std::endl;
+			f << "	{" << std::endl;
+			f << "		" << field.name << " = std::make_unique<" << field.type_name << ">();" << std::endl;
+			Field value = field;
+			value.name = "value";
+			value.special = FS_NONE;
+			if (value.flat())
+			{
+				f << "		is.read((char*)" << field.name << ".get(), sizeof(" << translateCpp(field.type_name) << "));" << std::endl;
+			}
+			else
+			{
+				f << "		auto&& value = *" << field.name << ";" << std::endl;
+				deserializeFieldCpp(f, value, types);
+			}
+			f << "	}" << std::endl;
 		}
-		f << "	}" << std::endl;
 	}
 	break;
 	case FS_VECTOR:
@@ -160,7 +229,7 @@ void deserializeFieldCpp(std::ofstream& f, Field field)
 			f << "		for (size_t i = 0; i < size; ++i)" << std::endl;
 			f << "		{" << std::endl;
 			f << "			auto&& element = " << field.name << "[i];" << std::endl;
-			deserializeFieldCpp(f, element);
+			deserializeFieldCpp(f, element, types);
 			f << "		}" << std::endl;
 		}
 		f << "	}" << std::endl;
@@ -171,9 +240,9 @@ void deserializeFieldCpp(std::ofstream& f, Field field)
 
 void CppGenerator::generate(const std::map<std::string, Structure>& types, const Protocol& protocol) const
 {
-	auto destination_path = folder;
+	auto& destination_path = folder;
 
-	for (auto type : types)
+	for (auto& type : types)
 	{
 		{
 			std::ofstream f(destination_path / (type.first + ".h"));
@@ -182,17 +251,17 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 
 			f << "// WARNING : Auto-generated file, changes made will disappear when re-generated." << std::endl << std::endl;
 
-			for (auto dependency : type.second.system_dependencies)
+			for (auto& dependency : type.second.system_dependencies)
 			{
 				f << "#include <" << dependency << ">" << std::endl;
 			}
 			f << "#include <iostream>" << std::endl << std::endl;
 
-			for (auto dependency : type.second.dependencies)
+			for (auto& dependency : type.second.dependencies)
 			{
 				f << "#include \"" << dependency << ".h\"" << std::endl;
 			}
-			for (auto dependency : type.second.application_dependencies)
+			for (auto& dependency : type.second.application_dependencies)
 			{
 				if (builtins_in_superdirectory)
 					f << "#include \"../" << dependency << ".h\"" << std::endl;
@@ -202,7 +271,7 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 			if (type.second.dependencies.size() + type.second.application_dependencies.size())
 				f << std::endl;
 
-			for (auto dependency : type.second.delayed_dependencies)
+			for (auto& dependency : type.second.delayed_dependencies)
 			{
 				f << "class " << dependency << ";" << std::endl;
 			}
@@ -211,12 +280,30 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 
 			f << "#pragma pack(push, 1)" << std::endl;
 
-			f << "class " << type.first << std::endl;
+			if (type.second.parent_name.size() > 0)
+			{
+				f << "class " << type.first << " :" << std::endl;
+				f << "\tpublic " << type.second.parent_name << std::endl;
+			}
+			else
+				f << "class " << type.first << std::endl;
 			f << "{" << std::endl;
 
 			f << "public:" << std::endl;
 
-			for (auto field : type.second.fields)
+			if (type.second.child_type_names.size() > 1)
+			{
+				f << "	virtual ~" << type.first << "();" << std::endl;
+			}
+			if (type.second.child_type_index != 0xff)
+			{
+				f << "\t";
+				if (type.second.child_type_names.size() > 1)
+					f << "virtual ";
+				f << "uint8_t getChildTypeIndex() const;" << std::endl;
+			}
+
+			for (auto& field : type.second.fields)
 			{
 				switch (field.special)
 				{
@@ -253,12 +340,28 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 
 			f << "#include <iostream>" << std::endl << std::endl;
 
-			for (auto dependency : type.second.delayed_dependencies)
+			for (auto& dependency : type.second.delayed_dependencies)
 			{
 				f << "#include \"" << dependency << ".h\"" << std::endl;
 			}
 			if (type.second.delayed_dependencies.size())
 				f << std::endl;
+
+			for (auto& dependency : type.second.hidden_dependencies)
+			{
+				f << "#include \"" << dependency << ".h\"" << std::endl;
+			}
+			if (type.second.hidden_dependencies.size())
+				f << std::endl;
+
+			if (type.second.child_type_names.size() > 1)
+			{
+				f << type.first << "::~" << type.first << "() {}" << std::endl;
+			}
+			if (type.second.child_type_index != 0xff)
+			{
+				f << "uint8_t " << type.first << "::getChildTypeIndex() const { return " << type.second.child_type_index << "; }" << std::endl;
+			}
 
 			f << "void " << type.first << "::serialize(std::ostream& os) const" << std::endl;
 			f << "{" << std::endl;
@@ -269,10 +372,15 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 			}
 			else
 			{
-				for (auto field : type.second.fields)
+				for (Field field : type.second.parent_fields)
 				{
 					field.name = "this->" + field.name;
-					serializeFieldCpp(f, field);
+					serializeFieldCpp(f, field, types);
+				}
+				for (Field field : type.second.fields)
+				{
+					field.name = "this->" + field.name;
+					serializeFieldCpp(f, field, types);
 				}
 			}
 
@@ -287,10 +395,15 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 			}
 			else
 			{
-				for (auto field : type.second.fields)
+				for (Field field : type.second.parent_fields)
 				{
 					field.name = "this->" + field.name;
-					deserializeFieldCpp(f, field);
+					deserializeFieldCpp(f, field, types);
+				}
+				for (Field field : type.second.fields)
+				{
+					field.name = "this->" + field.name;
+					deserializeFieldCpp(f, field, types);
 				}
 			}
 
@@ -319,7 +432,7 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 			f << "#include <map>" << std::endl << std::endl;
 		}
 
-		for (auto type : types)
+		for (auto& type : types)
 		{
 			f << "#include \"" << type.first << ".h\"" << std::endl;
 		}
@@ -347,9 +460,19 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 
 		f << "	void Dispatch(asio::streambuf& buffer, const asio::ip::udp::endpoint& endpoint);" << std::endl;
 
-		for (auto type : types) // TODO only message types
+		for (auto& type : types)
 		{
-			f << "	void Send(const asio::ip::udp::endpoint& endpoint, const " << type.first << "& message);" << std::endl;
+			if (up && type.second.down || down && type.second.up)
+			{
+				f << "	void Send(const asio::ip::udp::endpoint& endpoint, const " << type.first << "& message);" << std::endl;
+			}
+			if (up && type.second.up || down && type.second.down)
+			{
+				if (type.second.child_type_names.size() > 1)
+				{
+					f << "	void Dispatch(const " << type.first << " * message, const asio::ip::udp::endpoint& endpoint);" << std::endl;
+				}
+			}
 		}
 
 		f << "	static const uint32_t crc;" << std::endl << std::dec;
@@ -490,7 +613,7 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 
 			{
 				uint8_t message_index = 1;
-				for (auto [name, type] : types) // TODO only message types
+				for (auto& [name, type] : types) // TODO only message types
 				{
 					if (up && type.up || down && type.down)
 					{
@@ -516,7 +639,7 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 
 		{
 			uint8_t message_index = 1;
-			for (auto [name, type] : types) // TODO only message types
+			for (auto& [name, type] : types) // TODO only message types
 			{
 				if (up && type.down || down && type.up)
 				{
@@ -528,6 +651,28 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 					f << "	message.serialize(os);" << std::endl;
 					f << "	socket.async_send_to(buffer->data(), endpoint, [buffer](const asio::error_code&, size_t) {});" << std::endl;
 					f << "}" << std::endl << std::endl;
+				}
+				if (up && type.up || down && type.down)
+				{
+					if (type.child_type_names.size() > 1)
+					{
+						f << "void " << link_name << "::Dispatch(const " << name << " * message, const asio::ip::udp::endpoint& endpoint)" << std::endl;
+						f << "{" << std::endl;
+						f << "	if (message == nullptr)" << std::endl;
+						f << "		return;" << std::endl;
+						f << "	switch (message->getChildTypeIndex())" << std::endl;
+						f << "	{" << std::endl;
+						for (auto& child_type_name : type.child_type_names)
+						{
+							f << "		case " << types.at(child_type_name).child_type_index << ":" << std::endl;
+							f << "		{" << std::endl;
+							f << "			handler->" << child_type_name << "Handler(endpoint, *(const " << child_type_name << "*)message);" << std::endl;
+							f << "			break;" << std::endl;
+							f << "		}" << std::endl;
+						}
+						f << "	}" << std::endl;
+						f << "}" << std::endl << std::endl;
+					}
 				}
 				if (type.down || type.up)
 					++message_index;
@@ -550,7 +695,7 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 			f << "	void ConnectHandler(const asio::ip::udp::endpoint& endpoint);" << std::endl;
 		}
 
-		for (auto [name, type] : types)
+		for (auto& [name, type] : types)
 		{
 			if (up && type.up || down && type.down)
 				f << "	void " << name << "Handler(const asio::ip::udp::endpoint& endpoint, const " << name << "& message);" << std::endl;

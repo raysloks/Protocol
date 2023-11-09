@@ -1,2 +1,5 @@
 down
 uint64 id
+string name
+MpPlayerInventoryUpdate inventory
+MpPlayerExperienceUpdate experience

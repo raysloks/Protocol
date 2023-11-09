@@ -5,3 +5,4 @@ MpPath * path
 MpMobAurasUpdate * auras
 MpMobStateUpdate * state
 MpMobTypeUpdate * type
+MpMobCastUpdate * cast

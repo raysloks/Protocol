@@ -1,0 +1,3 @@
+down
+uint64 id
+uint64 abilities[]

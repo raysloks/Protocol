@@ -1,2 +1,2 @@
 uint64 time
-vec2 points[]
+vec3 points[]

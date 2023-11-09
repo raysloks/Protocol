@@ -1,0 +1,3 @@
+down
+ItemData equipment[]
+ItemData inventory[]

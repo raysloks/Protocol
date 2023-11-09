@@ -25,9 +25,11 @@ const std::vector<std::string> basic_types = {
 	"int8", "int16", "int32", "int64",
 	"uint8", "uint16", "uint32", "uint64",
 	"string",
-	"vec2", "vec3", "vec4" };
+	"vec2", "vec3", "vec4",
+	"uuid"
+};
 
-const std::vector<std::string> qualifiers = { "up", "down" };
+const std::vector<std::string> qualifiers = { "up", "down", "is" };
 
 const bool allow_external_types = true;
 
@@ -41,6 +43,8 @@ int main()
 		std::cout << protocol->name << std::endl;
 
 		std::map<std::string, Structure> types;
+
+		bool error = false;
 
 		for (const auto & entry : std::filesystem::directory_iterator(protocol->source))
 		{
@@ -57,12 +61,25 @@ int main()
 
 				if (std::find(qualifiers.begin(), qualifiers.end(), tokens[0]) != qualifiers.end())
 				{
-					for (auto token : tokens)
+					for (auto& token : tokens)
 					{
 						if (token == "up")
 							type.up = true;
 						if (token == "down")
 							type.down = true;
+					}
+					if (tokens[0] == "is")
+					{
+						if (tokens.size() < 2)
+						{
+							std::cout << "Error: 'is' needs to be followed by a type name." << std::endl;
+							error = true;
+						}
+						else
+						{
+							type.parent_name = tokens[1];
+							type.dependencies.insert(type.parent_name);
+						}
 					}
 					continue;
 				}
@@ -92,8 +109,6 @@ int main()
 			f.close();
 		}
 
-		bool error = false;
-
 		for (auto& type : types)
 		{
 			for (auto& field : type.second.fields)
@@ -115,8 +130,8 @@ int main()
 				{
 					field.type = &type_found->second;
 
-					auto original_type_name = type.first;
-					std::function<void(const std::pair<std::string, Structure>&)> func = [original_type_name, types, &func, &error](const std::pair<std::string, Structure>& type)
+					std::string original_type_name = type.first;
+					std::function<void(const std::pair<std::string, Structure>&)> func = [original_type_name, &types, &func, &error](const std::pair<std::string, Structure>& type)
 					{
 						if (type.first == original_type_name)
 						{
@@ -141,7 +156,8 @@ int main()
 					}
 					else
 					{
-						type.second.delayed_dependencies.insert(field.type_name);
+						//type.second.delayed_dependencies.insert(field.type_name);
+						type.second.dependencies.insert(field.type_name);
 					}
 
 					continue;
@@ -158,6 +174,8 @@ int main()
 						type.second.application_dependencies.insert("Vec3");
 					if (field.type_name == "vec4")
 						type.second.application_dependencies.insert("Vec4");
+					if (field.type_name == "uuid")
+						type.second.system_dependencies.insert("boost/uuid/uuid.hpp");
 					continue;
 				}
 
@@ -173,6 +191,76 @@ int main()
 			}
 		}
 
+		// TODO add error report for field inheriting from containing type
+		for (auto& type : types)
+		{
+			std::string original_type_name = type.first;
+			std::function<void(Structure&)> func = [original_type_name, &types, &func, &error](Structure& type)
+			{
+				type.child_type_names.insert(original_type_name);
+				if (type.parent_name == original_type_name)
+				{
+					std::cout << "Error: '" << original_type_name << "' inherits from itself." << std::endl;
+					error = true;
+					return;
+				}
+				/*if (type.parent_initialized)
+					return;*/
+				if (type.parent_name.size() > 0)
+				{
+					auto type_found = types.find(type.parent_name);
+					if (type_found != types.end())
+					{
+						func(type_found->second);
+						type.addParentFields(type_found->second);
+					}
+					else
+					{
+						std::cout << "Error: Type '" << type.parent_name << "' not found. Inheritance from unknown types is not supported." << std::endl;
+						error = true;
+						return;
+					}
+				}
+				//type.parent_initialized = true;
+			};
+
+			func(type.second);
+		}
+
+		for (auto& type : types)
+		{
+			std::string original_type_name = type.first;
+			std::function<int(Structure&)> getChildTypeIndex = [original_type_name, &types, &getChildTypeIndex, &error](Structure& type)
+			{
+				if (type.parent_name.size() > 0)
+				{
+					auto type_found = types.find(type.parent_name);
+					if (type_found != types.end())
+						return getChildTypeIndex(type_found->second);
+				}
+				if (type.child_type_names.size() == 1)
+					return 0xff;
+				return (int)std::distance(type.child_type_names.begin(), type.child_type_names.find(original_type_name));
+			};
+
+			type.second.child_type_index = getChildTypeIndex(type.second);
+		}
+
+		for (auto& type : types)
+		{
+			for (auto& field : type.second.fields)
+			{
+				if (field.type)
+				{
+					for (auto& child_type_name : field.type->child_type_names)
+					{
+						if (child_type_name != field.type_name)
+							type.second.hidden_dependencies.insert(child_type_name);
+					}
+				}
+			}
+		}
+
 		if (error)
 		{
 			std::cout << "Protocol code generation failed, there were error(s) in the protocol." << std::endl;
@@ -180,10 +268,10 @@ int main()
 		}
 
 		std::ostringstream oss;
-		for (auto type : types)
+		for (auto& type : types)
 		{
-			oss << type.first << std::endl;
-			for (auto field : type.second.fields)
+			oss << type.first << ":" << type.second.parent_name << std::endl;
+			for (auto& field : type.second.fields)
 			{
 				switch (field.special)
 				{
