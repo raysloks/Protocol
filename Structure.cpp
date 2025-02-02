@@ -16,6 +16,16 @@ bool Structure::flat() const
 	return true;
 }
 
+int Structure::maxSize() const
+{
+	int max_size = 0;
+	for (auto& field : parent_fields)
+		max_size += field.maxSize();
+	for (auto& field : fields)
+		max_size += field.maxSize();
+	return max_size;
+}
+
 void Structure::addParentFields(const Structure & parent)
 {
 	if (!parent_initialized)

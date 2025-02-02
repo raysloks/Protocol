@@ -22,5 +22,7 @@ public:
 	bool operator==(const Field& rhs) const;
 
 	bool flat() const;
+
+	int maxSize() const;
 };
 

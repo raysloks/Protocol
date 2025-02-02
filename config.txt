@@ -4,15 +4,7 @@ MobPosHandler
 MobPos/
 cpp
 up
-C:/Users/Emil/source/repos/Project4/Project4/MobPos/
-cpp
+C:/Users/Emil/Documents/GitHub/Project4/MobPos/
+cs
 down
-C:/Users/Emil/source/repos/Project3/Project3/MobPos/
-
-ShardToShard
-Sts
-Shard
-ShardToShard/
-cpp
-up down
-C:/Users/Emil/source/repos/Project4/Project4/ShardToShard/
+C:/Users/Emil/Inksong/Assets/Scripts/MobPos/

@@ -1,0 +1,7 @@
+int32 a
+int32 b
+int32 c
+int32 halfEdgeAB
+int32 halfEdgeBC
+int32 halfEdgeCA
+int32 island

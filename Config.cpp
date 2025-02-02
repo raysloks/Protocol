@@ -32,22 +32,19 @@ void Config::load(const std::filesystem::path& file)
 				break;
 
 			std::unique_ptr<Generator> generator;
-			if (type == "cpp") {
+			if (type == "cpp")
 				generator = std::make_unique<CppGenerator>();
-				std::string options;
-				std::getline(f, options);
-				if (options.find("super") != std::string::npos)
-					generator->builtins_in_superdirectory = true;
-				if (options.find("up") != std::string::npos)
-					generator->up = true;
-				if (options.find("down") != std::string::npos)
-					generator->down = true;
-			}
-			if (type == "cs") {
+			if (type == "cs")
 				generator = std::make_unique<CsGenerator>();
-				std::string options;
-				std::getline(f, options);
-			}
+
+			std::string options;
+			std::getline(f, options);
+			if (options.find("super") != std::string::npos)
+				generator->builtins_in_superdirectory = true;
+			if (options.find("up") != std::string::npos)
+				generator->up = true;
+			if (options.find("down") != std::string::npos)
+				generator->down = true;
 
 			std::string folder;
 			std::getline(f, folder);

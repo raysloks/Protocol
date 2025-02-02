@@ -24,6 +24,8 @@ public:
 
 	bool flat() const;
 
+	int maxSize() const;
+
 	void addParentFields(const Structure& parent);
 };
 

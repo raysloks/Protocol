@@ -20,6 +20,8 @@ std::string translateCpp(const std::string& type)
 	return type;
 }
 
+const int MAX_SMALL_PACKET_SIZE = 508;
+
 void serializeFieldCpp(std::ofstream& f, Field field, const std::map<std::string, Structure>& types)
 {
 	switch (field.special)
@@ -413,8 +415,8 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 		}
 	}
 
-	bool can_accept = true;
-	bool can_connect = true;
+	bool can_accept = up;
+	bool can_connect = down;
 
 	std::string link_name = protocol.prefix + "Link";
 
@@ -458,7 +460,14 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 			f << "	void Connect(const asio::ip::udp::endpoint& endpoint);" << std::endl;
 		}
 
+		if (can_accept)
+		{
+			f << "	void Disconnect(const asio::ip::udp::endpoint& endpoint);" << std::endl;
+		}
+
 		f << "	void Dispatch(asio::streambuf& buffer, const asio::ip::udp::endpoint& endpoint);" << std::endl;
+
+		f << "	void SendBigPacket(const asio::ip::udp::endpoint& endpoint, const std::shared_ptr<asio::streambuf>& buffer);" << std::endl;
 
 		for (auto& type : types)
 		{
@@ -503,6 +512,9 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 		f << "#include \"../" << protocol.handler << ".h\"" << std::endl << std::endl;
 
 		f << "const uint32_t " << link_name << "::crc = 0x" << std::hex << protocol.crc << ";" << std::endl << std::dec;
+
+		f << "const size_t MAX_SMALL_PACKET_SIZE = " << MAX_SMALL_PACKET_SIZE << ";" << std::endl;
+		f << "const size_t BIG_PACKET_CHUNK_SIZE = MAX_SMALL_PACKET_SIZE - " << 4 << ";" << std::endl;
 
 		f << link_name << "::" << link_name << "() : io_context(), socket(io_context)" << std::endl;
 		f << "{" << std::endl;
@@ -549,10 +561,28 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 			f << "}" << std::endl << std::endl;
 		}
 
+		if (can_accept)
+		{
+			f << "void " << link_name << "::Disconnect(const asio::ip::udp::endpoint& endpoint)" << std::endl;
+			f << "{" << std::endl;
+			f << "	auto it = connections.find(endpoint);" << std::endl;
+			f << "	if (it != connections.end())" << std::endl;
+			f << "	{" << std::endl;
+			f << "		connections.erase(it);" << std::endl;
+			f << "		std::shared_ptr<asio::streambuf> buffer = std::make_shared<asio::streambuf>();" << std::endl;
+			f << "		std::ostream os(buffer.get());" << std::endl;
+			f << "		os.put(0);" << std::endl;
+			f << "		os.write((const char*)&crc, sizeof(crc));" << std::endl;
+			f << "		os.put(2);" << std::endl;
+			f << "		os.put(1);" << std::endl;
+			f << "		socket.async_send_to(buffer->data(), endpoint, [buffer](const asio::error_code&, size_t) {});" << std::endl;
+			f << "	}" << std::endl;
+			f << "}" << std::endl << std::endl;
+		}
+
 		{
 			f << "void " << link_name << "::Dispatch(asio::streambuf& buffer, const asio::ip::udp::endpoint& endpoint)" << std::endl;
 			f << "{" << std::endl;
-			f << "	int64_t time = std::chrono::steady_clock::now().time_since_epoch().count();" << std::endl;
 			f << "	std::istream is(&buffer);" << std::endl;
 			f << "	char c = is.get();" << std::endl;
 			f << "	if (c == 0)" << std::endl;
@@ -562,14 +592,27 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 				f << "			uint32_t remote_crc;" << std::endl;
 				f << "			is.read((char*)&remote_crc, sizeof(remote_crc));" << std::endl;
 				f << "			if (remote_crc != crc)" << std::endl;
-				f << "				return;" << std::endl; // todo send error message
-				f << "			connections[endpoint] = time;" << std::endl;
+				f << "			{" << std::endl;
+				if (can_accept)
+				{
+					f << "				std::shared_ptr<asio::streambuf> buffer = std::make_shared<asio::streambuf>();" << std::endl;
+					f << "				std::ostream os(buffer.get());" << std::endl;
+					f << "				os.put(0);" << std::endl;
+					f << "				os.write((const char*)&crc, sizeof(crc));" << std::endl;
+					f << "				os.put(2);" << std::endl;
+					f << "				os.put(0);" << std::endl;
+					f << "				socket.async_send_to(buffer->data(), endpoint, [buffer](const asio::error_code&, size_t) {});" << std::endl;
+				}
+				f << "				return;" << std::endl;
+				f << "			}" << std::endl;
 				f << "			switch (is.get())" << std::endl;
 				f << "			{" << std::endl;
 				f << "				case 0:" << std::endl;
 				f << "				{" << std::endl;
 				if (can_accept)
 				{
+					f << "					int64_t time = std::chrono::steady_clock::now().time_since_epoch().count();" << std::endl;
+					f << "					connections[endpoint] = time;" << std::endl;
 					f << "					std::shared_ptr<asio::streambuf> buffer = std::make_shared<asio::streambuf>();" << std::endl;
 					f << "					std::ostream os(buffer.get());" << std::endl;
 					f << "					os.put(0);" << std::endl;
@@ -588,6 +631,18 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 				}
 				f << "					break;" << std::endl;
 				f << "				}" << std::endl;
+				f << "				case 2:" << std::endl;
+				f << "				{" << std::endl;
+				f << "					handler->DisconnectHandler(endpoint, is.get());" << std::endl;
+				if (can_accept)
+				{
+
+					f << "					auto it = connections.find(endpoint);" << std::endl;
+					f << "					if (it != connections.end())" << std::endl;
+					f << "						connections.erase(it);" << std::endl;
+				}
+				f << "					break;" << std::endl;
+				f << "				}" << std::endl;
 				f << "				default:" << std::endl;
 				f << "					break;" << std::endl;
 				f << "			}" << std::endl;
@@ -600,12 +655,12 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 				f << "	auto it = connections.find(endpoint);" << std::endl;
 				f << "	if (it == connections.end())" << std::endl;
 				f << "		return;" << std::endl;
-				f << "	if (time - it->second > 10'000'000'000)" << std::endl;
+				/*f << "	if (time - it->second > 10'000'000'000)" << std::endl;
 				f << "	{" << std::endl;
 				f << "		connections.erase(it);" << std::endl;
 				f << "		return;" << std::endl;
 				f << "	}" << std::endl;
-				f << "	connections[endpoint] = time;" << std::endl;
+				f << "	connections[endpoint] = time;" << std::endl;*/
 			}
 
 			f << "	switch (c)" << std::endl;
@@ -638,6 +693,31 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 		}
 
 		{
+			f << "void " << link_name << "::SendBigPacket(const asio::ip::udp::endpoint& endpoint, const std::shared_ptr<asio::streambuf>& buffer)" << std::endl;
+			f << "{" << std::endl;
+			f << "	std::istream is(buffer.get());" << std::endl;
+			f << "	auto it = connections.find(endpoint);" << std::endl;
+			f << "	if (it == connections.end())" << std::endl;
+			f << "		return;" << std::endl;
+			f << "	uint8_t message_id = it->second++;" << std::endl;
+			f << "	char chunk[BIG_PACKET_CHUNK_SIZE];" << std::endl;
+			f << "	for (uint16_t i = 0; i < 65535; ++i)" << std::endl;
+			f << "	{" << std::endl;
+			f << "		std::shared_ptr<asio::streambuf> partial_buffer = std::make_shared<asio::streambuf>();" << std::endl;
+			f << "		std::ostream os(partial_buffer.get());" << std::endl;
+			f << "		std::streamsize chunk_size = is.readsome(chunk, BIG_PACKET_CHUNK_SIZE);" << std::endl;
+			f << "		os.put(255);" << std::endl;
+			f << "		os.write((char*)&message_id, sizeof(message_id));" << std::endl;
+			f << "		os.write((char*)&i, sizeof(i));" << std::endl;
+			f << "		os.write(chunk, chunk_size);" << std::endl;
+			f << "		socket.async_send_to(partial_buffer->data(), endpoint, [partial_buffer](const asio::error_code&, size_t) {});" << std::endl;
+			f << "		if (chunk_size < BIG_PACKET_CHUNK_SIZE)" << std::endl;
+			f << "			break;" << std::endl;
+			f << "	}" << std::endl;
+			f << "}" << std::endl;
+		}
+
+		{
 			uint8_t message_index = 1;
 			for (auto& [name, type] : types) // TODO only message types
 			{
@@ -649,6 +729,13 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 					f << "	std::ostream os(buffer.get());" << std::endl;
 					f << "	os.put(" << std::to_string(message_index) << ");" << std::endl;
 					f << "	message.serialize(os);" << std::endl;
+					if (type.maxSize() > MAX_SMALL_PACKET_SIZE)
+					{
+						f << "	if (buffer->size() > MAX_SMALL_PACKET_SIZE)" << std::endl;
+						f << "		SendBigPacket(endpoint, buffer);" << std::endl;
+						f << "	else" << std::endl;
+						f << "	";
+					}
 					f << "	socket.async_send_to(buffer->data(), endpoint, [buffer](const asio::error_code&, size_t) {});" << std::endl;
 					f << "}" << std::endl << std::endl;
 				}
@@ -694,6 +781,8 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 		{
 			f << "	void ConnectHandler(const asio::ip::udp::endpoint& endpoint);" << std::endl;
 		}
+
+		f << "	void DisconnectHandler(const asio::ip::udp::endpoint& endpoint, uint8_t code);" << std::endl;
 
 		for (auto& [name, type] : types)
 		{

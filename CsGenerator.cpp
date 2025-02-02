@@ -14,7 +14,8 @@ const std::map<std::string, std::string> basic_translations = { {"float", "float
 	{"int8", "sbyte"}, {"int16", "short"}, {"int32", "int"}, {"int64", "long"},
 	{"uint8", "byte"}, {"uint16", "ushort"}, {"uint32", "uint"}, {"uint64", "ulong"},
 	{"string", "string"},
-	{"vec2", "Vector2"}, {"vec3", "Vector3"}, {"vec4", "Vector4"} };
+	{"vec2", "Vector2"}, {"vec3", "Vector3"}, {"vec4", "Vector4"},
+	{"uuid", "Guid"} };
 
 std::string translateCs(const std::string& type)
 {
@@ -65,7 +66,15 @@ void serializeFieldCs(std::ofstream& f, Field field)
 			f << "		writer.Write(" << field.name << ".w);" << std::endl;
 			break;
 		}
-		f << "		writer.Write((" << writer_translations.at(field.type_name) << ")" << field.name << ");" << std::endl;
+		if (field.type_name == "uuid")
+		{
+			f << "		writer.Write(" << field.name << ".ToByteArray());" << std::endl;
+			break;
+		}
+		if (writer_translations.find(field.type_name) != writer_translations.end())
+			f << "		writer.Write((" << writer_translations.at(field.type_name) << ")" << field.name << ");" << std::endl;
+		else
+			f << "		writer.Write(MemoryMarshal.AsBytes<" << translateCs(field.type_name) << ">(new[] { " << field.name << " }));" << std::endl;
 		break;
 	case FS_POINTER:
 		f << "		if (" << field.name << ".HasValue)" << std::endl;
@@ -85,13 +94,22 @@ void serializeFieldCs(std::ofstream& f, Field field)
 		break;
 	case FS_VECTOR:
 		f << "		{" << std::endl;
-		f << "			ushort size = this." << field.name << ".Count;" << std::endl;
+		f << "			ushort size = (ushort)this." << field.name << ".Count;" << std::endl;
 		f << "			writer.Write(size);" << std::endl;
 		Field i = field;
 		i.name = "i";
 		i.special = FS_NONE;
-		f << "			foreach (var i in this." << field.name << ")" << std::endl;
-		serializeFieldCs(f, i);
+		if (i.flat())
+		{
+			f << "			writer.Write(MemoryMarshal.AsBytes<" << translateCs(field.type_name) << ">(" << field.name << ".ToArray()));" << std::endl;
+		}
+		else
+		{
+			f << "			foreach (var i in this." << field.name << ")" << std::endl;
+			f << "			{" << std::endl;
+			serializeFieldCs(f, i);
+			f << "			}" << std::endl;
+		}
 		f << "		}" << std::endl;
 		break;
 	}
@@ -131,7 +149,15 @@ void deserializeFieldCs(std::ofstream& f, Field field)
 			f << "		" << field.name << " = new Vector4(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());" << std::endl;
 			break;
 		}
-		f << "		" << field.name << " = (" << translateCs(field.type_name) << ")reader.Read" << reader_translations.at(field.type_name) << "();" << std::endl;
+		if (field.type_name == "uuid")
+		{
+			f << "		" << field.name << " = new Guid(reader.ReadBytes(16));" << std::endl;
+			break;
+		}
+		if (reader_translations.find(field.type_name) != reader_translations.end())
+			f << "		" << field.name << " = (" << translateCs(field.type_name) << ")reader.Read" << reader_translations.at(field.type_name) << "();" << std::endl;
+		else
+			f << "		" << field.name << " = MemoryMarshal.Read<" << field.type_name << ">(reader.ReadBytes(Marshal.SizeOf(typeof(" << field.type_name << "))));" << std::endl;
 		break;
 	case FS_POINTER:
 		f << "		if (reader.ReadBoolean())" << std::endl;
@@ -144,25 +170,32 @@ void deserializeFieldCs(std::ofstream& f, Field field)
 		f << "		}" << std::endl;
 		break;
 	case FS_VECTOR:
-		f << "	{" << std::endl;
-		f << "		ushort size = reader.ReadUInt16();" << std::endl;
-		f << "		for (int i = 0; i < size; ++i)" << std::endl;
 		f << "		{" << std::endl;
-		if (field.type)
-		{
-			f << "			" << field.type_name << " element = new " << field.type_name << "();" << std::endl;
-		}
-		else
-		{
-			f << "			" << field.type_name << " element;" << std::endl;
-		}
+		f << "			ushort size = reader.ReadUInt16();" << std::endl;
 		Field element = field;
 		element.name = "element";
 		element.special = FS_NONE;
-		deserializeFieldCs(f, element);
-		f << "			" << field.name << ".Add(element);" << std::endl;
+		if (element.flat())
+		{
+			f << "			" << field.name << " = new List<" << translateCs(field.type_name) << ">(MemoryMarshal.Cast<byte, " << translateCs(field.type_name) << ">(reader.ReadBytes(Marshal.SizeOf(typeof(" << translateCs(field.type_name) << ")) * size)).ToArray());" << std::endl;
+		}
+		else
+		{
+			f << "		for (int i = 0; i < size; ++i)" << std::endl;
+			f << "		{" << std::endl;
+			if (field.type)
+			{
+				f << "			" << field.type_name << " element = new " << field.type_name << "();" << std::endl;
+			}
+			else
+			{
+				f << "			" << field.type_name << " element;" << std::endl;
+			}
+			deserializeFieldCs(f, element);
+			f << "			" << field.name << ".Add(element);" << std::endl;
+			f << "		}" << std::endl;
+		}
 		f << "		}" << std::endl;
-		f << "	}" << std::endl;
 		break;
 	}
 }
@@ -175,7 +208,10 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 	{
 		std::ofstream f(destination_path / (type.first + ".cs"));
 
+		f << "using System;" << std::endl;
+		f << "using System.Collections.Generic;" << std::endl;
 		f << "using System.IO;" << std::endl;
+		f << "using System.Runtime.InteropServices;" << std::endl;
 		
 		if (type.second.application_dependencies.size())
 		{
@@ -233,14 +269,16 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 		f.close();
 	}
 
-	bool can_connect = true;
-	bool can_accept = true;
+	bool can_connect = down;
+	bool can_accept = up;
 
 	{
 		std::ofstream f(destination_path / "Link.cs");
 
 		f << "using System;" << std::endl;
 		f << "using System.Collections.Concurrent;" << std::endl;
+		f << "using System.Collections.Generic;" << std::endl;
+		f << "using System.Diagnostics;" << std::endl;
 		f << "using System.IO;" << std::endl;
 		f << "using System.Net;" << std::endl;
 		f << "using System.Net.Sockets;" << std::endl << std::endl;
@@ -253,6 +291,45 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 		f << "	public " << protocol.handler << " handler;" << std::endl << std::endl;
 
 		f << "	public ConcurrentQueue<Action> message_queue = new ConcurrentQueue<Action>();" << std::endl << std::endl;
+
+		f << "	public const int MaxSmallPacketSize = " << 508 << ";" << std::endl;
+		f << "	public const int BigPacketChunkSize = MaxSmallPacketSize - " << 4 << ";" << std::endl;
+		f << "	public const int MaxBigPacketChunkCount = " << 65535 << ";" << std::endl;
+		f << "	public const int MaxBigPacketSize = BigPacketChunkSize * MaxBigPacketChunkCount;" << std::endl;
+
+		f << std::endl;
+
+		f << "	public class BigPacketReceiver" << std::endl;
+		f << "	{" << std::endl;
+		f << "		public int chunksReceived;" << std::endl;
+		f << "		public int lastChunkIndex;" << std::endl;
+		f << "		public byte[] buffer = new byte[MaxBigPacketSize];" << std::endl;
+		f << "		public long timeout;" << std::endl;
+		f << std::endl;
+		f << "		public void InsertChunk(int chunkIndex, BinaryReader reader)" << std::endl;
+		f << "		{" << std::endl;
+		f << "			++chunksReceived;" << std::endl;
+		f << "			int bytesRead = reader.Read(buffer, chunkIndex * BigPacketChunkSize, BigPacketChunkSize);" << std::endl;
+		f << "			if (bytesRead != BigPacketChunkSize || chunkIndex == MaxBigPacketChunkCount)" << std::endl;
+		f << "				lastChunkIndex = chunkIndex;" << std::endl;
+		f << "		}" << std::endl;
+		f << std::endl;
+		f << "		public bool Done => chunksReceived == lastChunkIndex + 1;" << std::endl;
+		f << std::endl;
+		f << "		public void Reset()" << std::endl;
+		f << "		{" << std::endl;
+		f << "			chunksReceived = 0;" << std::endl;
+		f << "			lastChunkIndex = -2;" << std::endl;
+		f << "			timeout = Stopwatch.GetTimestamp() * 1_000_000_000 / Stopwatch.Frequency + 20_000_000_000;" << std::endl;
+		f << "		}" << std::endl;
+		f << "	}" << std::endl;
+
+		f << std::endl;
+
+		f << "	public Stack<BigPacketReceiver> receiverPool = new();" << std::endl;
+		f << "	public Dictionary<int, BigPacketReceiver> allocatedReceivers = new();" << std::endl;
+
+		f << std::endl;
 
 		f << "	public void Poll()" << std::endl;
 		f << "	{" << std::endl;
@@ -289,40 +366,49 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 			f << "	}" << std::endl << std::endl;
 		}
 
+		if (can_accept)
 		{
 			uint8_t message_index = 1;
-			for (auto type : types) // TODO only message types
+			for (auto& type : types)
 			{
-				f << "	public void Send(IPEndPoint endpoint, in " << type.first << " message)" << std::endl;
-				f << "	{" << std::endl;
-				f << "		MemoryStream stream = new MemoryStream();" << std::endl;
-				f << "		BinaryWriter writer = new BinaryWriter(stream);" << std::endl;
-				f << "		writer.Write((byte)" << std::to_string(message_index) << ");" << std::endl;
-				f << "		message.Serialize(writer);" << std::endl;
-				f << "		byte[] bytes = stream.ToArray();" << std::endl;
-				f << "		client.SendAsync(bytes, bytes.Length, endpoint);" << std::endl;
-				f << "	}" << std::endl << std::endl;
-				++message_index;
+				if (up && type.second.down || down && type.second.up)
+				{
+					f << "	public void Send(IPEndPoint endpoint, in " << type.first << " message)" << std::endl;
+					f << "	{" << std::endl;
+					f << "		MemoryStream stream = new MemoryStream();" << std::endl;
+					f << "		BinaryWriter writer = new BinaryWriter(stream);" << std::endl;
+					f << "		writer.Write((byte)" << std::to_string(message_index) << ");" << std::endl;
+					f << "		message.Serialize(writer);" << std::endl;
+					f << "		byte[] bytes = stream.ToArray();" << std::endl;
+					f << "		client.SendAsync(bytes, bytes.Length, endpoint);" << std::endl;
+					f << "	}" << std::endl << std::endl;
+				}
+				if (type.second.down || type.second.up)
+					++message_index;
 			}
 		}
 
 		if (can_connect)
 		{
 			uint8_t message_index = 1;
-			for (auto type : types) // TODO only message types
+			for (auto& type : types)
 			{
-				f << "	public void Send(in " << type.first << " message)" << std::endl;
-				f << "	{" << std::endl;
-				f << "		if (endpoint == null)" << std::endl; // perhaps there is a better solution?
-				f << "			return;" << std::endl;
-				f << "		MemoryStream stream = new MemoryStream();" << std::endl;
-				f << "		BinaryWriter writer = new BinaryWriter(stream);" << std::endl;
-				f << "		writer.Write((byte)" << std::to_string(message_index) << ");" << std::endl;
-				f << "		message.Serialize(writer);" << std::endl;
-				f << "		byte[] bytes = stream.ToArray();" << std::endl;
-				f << "		client.SendAsync(bytes, bytes.Length, endpoint);" << std::endl;
-				f << "	}" << std::endl << std::endl;
-				++message_index;
+				if (up && type.second.down || down && type.second.up)
+				{
+					f << "	public void Send(in " << type.first << " message)" << std::endl;
+					f << "	{" << std::endl;
+					f << "		if (endpoint == null)" << std::endl; // perhaps there is a better solution?
+					f << "			return;" << std::endl;
+					f << "		MemoryStream stream = new MemoryStream();" << std::endl;
+					f << "		BinaryWriter writer = new BinaryWriter(stream);" << std::endl;
+					f << "		writer.Write((byte)" << std::to_string(message_index) << ");" << std::endl;
+					f << "		message.Serialize(writer);" << std::endl;
+					f << "		byte[] bytes = stream.ToArray();" << std::endl;
+					f << "		client.SendAsync(bytes, bytes.Length, endpoint);" << std::endl;
+					f << "	}" << std::endl << std::endl;
+				}
+				if (type.second.down || type.second.up)
+					++message_index;
 			}
 		}
 
@@ -360,7 +446,14 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 				if (can_connect)
 				{
 					f << "						this.endpoint = endpoint;" << std::endl;
+					f << "						message_queue.Enqueue(() => handler.ConnectHandler(endpoint));" << std::endl;
 				}
+				f << "						break;" << std::endl;
+				f << "					}" << std::endl;
+				f << "					case 2:" << std::endl;
+				f << "					{" << std::endl;
+				f << "						byte code = reader.ReadByte();" << std::endl;
+				f << "						message_queue.Enqueue(() => handler.DisconnectHandler(endpoint, code));" << std::endl;
 				f << "						break;" << std::endl;
 				f << "					}" << std::endl;
 				f << "					default:" << std::endl;
@@ -372,16 +465,59 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 
 			{
 				uint8_t message_index = 1;
-				for (auto type : types) // TODO only message types
+				for (auto& type : types)
 				{
-					f << "		case " << std::to_string(message_index) << ":" << std::endl;
-					f << "		{" << std::endl;
-					f << "			" << type.first << " message = " << type.first << ".Deserialize(reader);" << std::endl;
-					f << "			message_queue.Enqueue(() => handler." << type.first << "Handler(endpoint, message));" << std::endl;
-					f << "			break;" << std::endl;
-					f << "		}" << std::endl;
-					++message_index;
+					if (down && type.second.down || up && type.second.up)
+					{
+						f << "		case " << std::to_string(message_index) << ":" << std::endl;
+						f << "		{" << std::endl;
+						f << "			" << type.first << " message = " << type.first << ".Deserialize(reader);" << std::endl;
+						f << "			message_queue.Enqueue(() => handler." << type.first << "Handler(endpoint, message));" << std::endl;
+						f << "			break;" << std::endl;
+						f << "		}" << std::endl;
+					}
+					if (type.second.down || type.second.up)
+						++message_index;
 				}
+			}
+
+			{
+				f << "		case 255:" << std::endl;
+				f << "		{" << std::endl;
+				f << "			byte messageId = reader.ReadByte();" << std::endl;
+				f << "			ushort chunkIndex = reader.ReadUInt16();" << std::endl;
+				f << "			BigPacketReceiver filledReceiver = null;" << std::endl;
+				f << "			lock (allocatedReceivers)" << std::endl;
+				f << "			{" << std::endl;
+				f << "				BigPacketReceiver receiver;" << std::endl;
+				f << "				if (allocatedReceivers.ContainsKey(messageId))" << std::endl;
+				f << "					receiver = allocatedReceivers[messageId];" << std::endl;
+				f << "				else" << std::endl;
+				f << "				{" << std::endl;
+				f << "					if (receiverPool.Count > 0)" << std::endl;
+				f << "						receiver = receiverPool.Pop();" << std::endl;
+				f << "					else" << std::endl;
+				f << "						receiver = new BigPacketReceiver();" << std::endl;
+				f << "					receiver.Reset();" << std::endl;
+				f << "					allocatedReceivers[messageId] = receiver;" << std::endl;
+				f << "				}" << std::endl;
+				f << "				receiver.InsertChunk(chunkIndex, reader);" << std::endl;
+				f << "				if (receiver.Done)" << std::endl;
+				f << "				{" << std::endl;
+				f << "					filledReceiver = receiver;" << std::endl;
+				f << "					allocatedReceivers.Remove(messageId);" << std::endl;
+				f << "				}" << std::endl;
+				f << "			}" << std::endl;
+				f << "			if (filledReceiver != null)" << std::endl;
+				f << "			{" << std::endl;
+				f << "				Dispatch(filledReceiver.buffer, endpoint);" << std::endl;
+				f << "				lock (allocatedReceivers)" << std::endl;
+				f << "				{" << std::endl;
+				f << "					receiverPool.Push(filledReceiver);" << std::endl;
+				f << "				}" << std::endl;
+				f << "			}" << std::endl;
+				f << "			break;" << std::endl;
+				f << "		}" << std::endl;
 			}
 
 			f << "		default:" << std::endl;

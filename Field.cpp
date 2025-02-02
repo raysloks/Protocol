@@ -18,3 +18,29 @@ bool Field::flat() const
 		return false;
 	return true;
 }
+
+int Field::maxSize() const
+{
+	int base_size = 1;
+	if (type_name == "int16")
+		base_size = 2;
+	if (type_name == "uint16")
+		base_size = 2;
+	if (type_name == "int32")
+		base_size = 4;
+	if (type_name == "uint32")
+		base_size = 4;
+	if (type_name == "int64")
+		base_size = 8;
+	if (type_name == "uint64")
+		base_size = 8;
+	if (type_name == "string")
+		return 65535 + 2;
+	if (type)
+		base_size = type->maxSize();
+	if (special == FS_VECTOR)
+		return base_size * 65535 + 2;
+	if (special == FS_POINTER)
+		return base_size + 1;
+	return base_size;
+}
