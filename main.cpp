@@ -229,6 +229,11 @@ int main()
 
 		for (auto& type : types)
 		{
+			type.second.cascadeUsed();
+		}
+
+		for (auto& type : types)
+		{
 			std::string original_type_name = type.first;
 			std::function<int(Structure&)> getChildTypeIndex = [original_type_name, &types, &getChildTypeIndex, &error](Structure& type)
 			{

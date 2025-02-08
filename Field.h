@@ -22,6 +22,8 @@ public:
 	bool operator==(const Field& rhs) const;
 
 	bool flat() const;
+	bool superFlat() const;
+	bool shouldBeNullable() const;
 
 	int maxSize() const;
 };

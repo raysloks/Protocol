@@ -1,3 +1,2 @@
-up
 is MpCommand
 uint64 target

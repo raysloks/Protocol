@@ -19,6 +19,29 @@ bool Field::flat() const
 	return true;
 }
 
+bool Field::superFlat() const
+{
+	if (special != FS_NONE)
+		return false;
+	if (type)
+	{
+		if (!type->superFlat())
+			return false;
+		if (type->child_type_index != 0xff)
+			return false;
+	}
+	if (type_name == "string")
+		return false;
+	return true;
+}
+
+bool Field::shouldBeNullable() const
+{
+	if (type)
+		return type->child_type_index == 0xff;
+	return true;
+}
+
 int Field::maxSize() const
 {
 	int base_size = 1;
@@ -37,7 +60,11 @@ int Field::maxSize() const
 	if (type_name == "string")
 		return 65535 + 2;
 	if (type)
+	{
 		base_size = type->maxSize();
+		if (type->child_type_names.size() > 0 && special == FS_POINTER)
+			base_size += 1;
+	}
 	if (special == FS_VECTOR)
 		return base_size * 65535 + 2;
 	if (special == FS_POINTER)

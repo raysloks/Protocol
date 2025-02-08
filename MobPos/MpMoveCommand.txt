@@ -1,3 +1,2 @@
-up
 is MpCommand
 vec3 target

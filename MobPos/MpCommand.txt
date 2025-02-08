@@ -1,3 +1,2 @@
-up
 uint64 time
 vec3 position

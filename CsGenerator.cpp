@@ -3,8 +3,8 @@
 #include <fstream>
 
 const std::map<std::string, std::string> writer_translations = { {"float", "float"}, {"double", "double"},
-	{"int8", "int"}, {"int16", "int"}, {"int32", "int"}, {"int64", "long"},
-	{"uint8", "uint"}, {"uint16", "uint"}, {"uint32", "uint"}, {"uint64", "ulong"} };
+	{"int8", "sbyte"}, {"int16", "short"}, {"int32", "int"}, {"int64", "long"},
+	{"uint8", "byte"}, {"uint16", "ushort"}, {"uint32", "uint"}, {"uint64", "ulong"} };
 
 const std::map<std::string, std::string> reader_translations = { {"float", "Single"}, {"double", "Double"},
 	{"int8", "Int32"}, {"int16", "Int32"}, {"int32", "Int32"}, {"int64", "Int64"},
@@ -77,20 +77,51 @@ void serializeFieldCs(std::ofstream& f, Field field)
 			f << "		writer.Write(MemoryMarshal.AsBytes<" << translateCs(field.type_name) << ">(new[] { " << field.name << " }));" << std::endl;
 		break;
 	case FS_POINTER:
-		f << "		if (" << field.name << ".HasValue)" << std::endl;
-		f << "		{" << std::endl;
-		f << "			writer.Write(true);" << std::endl;
+		if (field.type && field.type->child_type_names.size() > 1)
 		{
+			f << "		if (" << field.name << " != null)" << std::endl;
+			f << "		{" << std::endl;
 			Field value = field;
 			value.special = FS_NONE;
-			value.name += ".Value";
 			serializeFieldCs(f, value);
+			f << "		}" << std::endl;
+			f << "		else" << std::endl;
+			f << "		{" << std::endl;
+			f << "			writer.Write((byte)0xff);" << std::endl;
+			f << "		}" << std::endl;
 		}
-		f << "		}" << std::endl;
-		f << "		else" << std::endl;
-		f << "		{" << std::endl;
-		f << "			writer.Write(false);" << std::endl;
-		f << "		}" << std::endl;
+		else
+		{
+			if (field.shouldBeNullable())
+			{
+				f << "		if (" << field.name << ".HasValue)" << std::endl;
+				f << "		{" << std::endl;
+				f << "			writer.Write(true);" << std::endl;
+				Field value = field;
+				value.special = FS_NONE;
+				value.name += ".Value";
+				serializeFieldCs(f, value);
+				f << "		}" << std::endl;
+				f << "		else" << std::endl;
+				f << "		{" << std::endl;
+				f << "			writer.Write(false);" << std::endl;
+				f << "		}" << std::endl;
+			}
+			else
+			{
+				f << "		if (" << field.name << " != null)" << std::endl;
+				f << "		{" << std::endl;
+				f << "			writer.Write(true);" << std::endl;
+				Field value = field;
+				value.special = FS_NONE;
+				serializeFieldCs(f, value);
+				f << "		}" << std::endl;
+				f << "		else" << std::endl;
+				f << "		{" << std::endl;
+				f << "			writer.Write(false);" << std::endl;
+				f << "		}" << std::endl;
+			}
+		}
 		break;
 	case FS_VECTOR:
 		f << "		{" << std::endl;
@@ -99,7 +130,7 @@ void serializeFieldCs(std::ofstream& f, Field field)
 		Field i = field;
 		i.name = "i";
 		i.special = FS_NONE;
-		if (i.flat())
+		if (i.superFlat())
 		{
 			f << "			writer.Write(MemoryMarshal.AsBytes<" << translateCs(field.type_name) << ">(" << field.name << ".ToArray()));" << std::endl;
 		}
@@ -160,14 +191,21 @@ void deserializeFieldCs(std::ofstream& f, Field field)
 			f << "		" << field.name << " = MemoryMarshal.Read<" << field.type_name << ">(reader.ReadBytes(Marshal.SizeOf(typeof(" << field.type_name << "))));" << std::endl;
 		break;
 	case FS_POINTER:
-		f << "		if (reader.ReadBoolean())" << std::endl;
-		f << "		{" << std::endl;
+		if (field.type && field.type->child_type_names.size() > 1)
 		{
 			Field value = field;
 			value.special = FS_NONE;
 			deserializeFieldCs(f, value);
 		}
-		f << "		}" << std::endl;
+		else
+		{
+			f << "		if (reader.ReadBoolean())" << std::endl;
+			f << "		{" << std::endl;
+			Field value = field;
+			value.special = FS_NONE;
+			deserializeFieldCs(f, value);
+			f << "		}" << std::endl;
+		}
 		break;
 	case FS_VECTOR:
 		f << "		{" << std::endl;
@@ -175,25 +213,26 @@ void deserializeFieldCs(std::ofstream& f, Field field)
 		Field element = field;
 		element.name = "element";
 		element.special = FS_NONE;
-		if (element.flat())
+		if (element.superFlat())
 		{
 			f << "			" << field.name << " = new List<" << translateCs(field.type_name) << ">(MemoryMarshal.Cast<byte, " << translateCs(field.type_name) << ">(reader.ReadBytes(Marshal.SizeOf(typeof(" << translateCs(field.type_name) << ")) * size)).ToArray());" << std::endl;
 		}
 		else
 		{
-			f << "		for (int i = 0; i < size; ++i)" << std::endl;
-			f << "		{" << std::endl;
+			f << "			" << field.name << " = new List<" << translateCs(field.type_name) << ">();" << std::endl;
+			f << "			for (int i = 0; i < size; ++i)" << std::endl;
+			f << "			{" << std::endl;
 			if (field.type)
 			{
-				f << "			" << field.type_name << " element = new " << field.type_name << "();" << std::endl;
+				f << "				" << field.type_name << " element = new " << field.type_name << "();" << std::endl;
 			}
 			else
 			{
-				f << "			" << field.type_name << " element;" << std::endl;
+				f << "				" << field.type_name << " element;" << std::endl;
 			}
 			deserializeFieldCs(f, element);
-			f << "			" << field.name << ".Add(element);" << std::endl;
-			f << "		}" << std::endl;
+			f << "				" << field.name << ".Add(element);" << std::endl;
+			f << "			}" << std::endl;
 		}
 		f << "		}" << std::endl;
 		break;
@@ -213,7 +252,7 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 		f << "using System.IO;" << std::endl;
 		f << "using System.Runtime.InteropServices;" << std::endl;
 		
-		if (type.second.application_dependencies.size())
+		//if (type.second.application_dependencies.size())
 		{
 			f << "using UnityEngine;" << std::endl;
 		}
@@ -222,7 +261,22 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 
 		f << "// WARNING : Auto-generated file, changes made will disappear when re-generated." << std::endl << std::endl;
 
-		f << "public struct " << type.first << std::endl;
+		if (type.second.child_type_names.size() > 1 || type.second.parent_name.size() > 0)
+		{
+			if (type.second.parent_name.size() > 0)
+			{
+				f << "public class " << type.first << " : " << type.second.parent_name << std::endl;
+			}
+			else
+			{
+				f << "public class " << type.first << std::endl;
+			}
+		}
+		else
+		{
+			f << "public struct " << type.first << std::endl;
+		}
+
 		f << "{" << std::endl;
 
 		for (auto field : type.second.fields)
@@ -233,19 +287,44 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 				f << "	public " << translateCs(field.type_name) << " " << field.name << ";" << std::endl;
 				break;
 			case FS_POINTER:
-				f << "	public " << translateCs(field.type_name) << "? " << field.name << ";" << std::endl;
+				if (field.shouldBeNullable())
+					f << "	public " << translateCs(field.type_name) << "? " << field.name << ";" << std::endl;
+				else
+					f << "	public " << translateCs(field.type_name) << " " << field.name << ";" << std::endl;
 				break;
 			case FS_VECTOR:
 				f << "	public List<" << translateCs(field.type_name) << "> " << field.name << ";" << std::endl;
 				break;
 			}
 		}
-		if (type.second.fields.size())
+		if (type.second.fields.size() || type.second.parent_fields.size())
 			f << std::endl;
 
-		f << "	public void Serialize(BinaryWriter writer)" << std::endl;
+		if (type.second.parent_name.size() > 0)
+		{
+			f << "	public override void Serialize(BinaryWriter writer)" << std::endl;
+		}
+		else
+		{
+			if (type.second.child_type_names.size() > 1)
+			{
+				f << "	public virtual void Serialize(BinaryWriter writer)" << std::endl;
+			}
+			else
+			{
+				f << "	public readonly void Serialize(BinaryWriter writer)" << std::endl;
+			}
+		}
 		f << "	{" << std::endl;
 
+		if (type.second.child_type_index != 0xff)
+		{
+			f << "		writer.Write((byte)" << type.second.child_type_index << ");" << std::endl;
+		}
+		for (auto field : type.second.parent_fields)
+		{
+			serializeFieldCs(f, field);
+		}
 		for (auto field : type.second.fields)
 		{
 			serializeFieldCs(f, field);
@@ -253,15 +332,61 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 
 		f << "	}" << std::endl << std::endl;
 
-		f << "	public static " << type.first << " Deserialize(BinaryReader reader)" << std::endl;
-		f << "	{" << std::endl;
-		f << "		" << type.first << " _ret = new " << type.first << "();" << std::endl;
-		for (auto field : type.second.fields)
+		if (type.second.parent_name.size() > 0)
 		{
-			field.name = "_ret." + field.name;
-			deserializeFieldCs(f, field);
+			f << "	public static new " << type.first << " Deserialize(BinaryReader reader)" << std::endl;
 		}
-		f << "		return _ret;" << std::endl;
+		else
+		{
+			f << "	public static " << type.first << " Deserialize(BinaryReader reader)" << std::endl;
+		}
+		f << "	{" << std::endl;
+		if (type.second.child_type_names.size() > 1)
+		{
+			f << "		switch (reader.ReadByte())" << std::endl;
+			f << "		{" << std::endl;
+			for (auto& child_type_name : type.second.child_type_names)
+			{
+				f << "			case " << types.at(child_type_name).child_type_index << ":" << std::endl;
+				if (child_type_name == type.first)
+				{
+					f << "				" << type.first << " _ret = new();" << std::endl;
+					for (auto field : type.second.parent_fields)
+					{
+						field.name = "_ret." + field.name;
+						deserializeFieldCs(f, field);
+					}
+					for (auto field : type.second.fields)
+					{
+						field.name = "_ret." + field.name;
+						deserializeFieldCs(f, field);
+					}
+					f << "				return _ret;" << std::endl;
+				}
+				else
+				{
+					f << "				return " << child_type_name << ".Deserialize(reader);" << std::endl;
+				}
+			}
+			f << "			default:" << std::endl;
+			f << "				return null;" << std::endl;
+			f << "		}" << std::endl;
+		}
+		else
+		{
+			f << "		" << type.first << " _ret = new();" << std::endl;
+			for (auto field : type.second.parent_fields)
+			{
+				field.name = "_ret." + field.name;
+				deserializeFieldCs(f, field);
+			}
+			for (auto field : type.second.fields)
+			{
+				field.name = "_ret." + field.name;
+				deserializeFieldCs(f, field);
+			}
+			f << "		return _ret;" << std::endl;
+		}
 		f << "	}" << std::endl;
 
 		f << "};" << std::endl;
@@ -406,6 +531,28 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 					f << "		byte[] bytes = stream.ToArray();" << std::endl;
 					f << "		client.SendAsync(bytes, bytes.Length, endpoint);" << std::endl;
 					f << "	}" << std::endl << std::endl;
+				}
+				if (up && type.second.used_up || down && type.second.used_down)
+				{
+					if (type.second.child_type_names.size() > 1)
+					{
+						f << "void Dispatch(in " << type.first << " message)" << std::endl;
+						f << "{" << std::endl;
+						f << "	switch (message.GetChildTypeIndex())" << std::endl;
+						f << "	{" << std::endl;
+						for (auto& child_type_name : type.second.child_type_names)
+						{
+							f << "		case " << types.at(child_type_name).child_type_index << ":" << std::endl;
+							f << "		{" << std::endl;
+							f << "			handler->" << child_type_name << "Handler(endpoint, *(const " << child_type_name << "*)message);" << std::endl;
+							f << "			break;" << std::endl;
+							f << "		}" << std::endl;
+						}
+						f << "		default:" << std::endl;
+						f << "			break;" << std::endl;
+						f << "	}" << std::endl;
+						f << "}" << std::endl << std::endl;
+					}
 				}
 				if (type.second.down || type.second.up)
 					++message_index;

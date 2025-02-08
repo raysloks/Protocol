@@ -475,7 +475,7 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 			{
 				f << "	void Send(const asio::ip::udp::endpoint& endpoint, const " << type.first << "& message);" << std::endl;
 			}
-			if (up && type.second.up || down && type.second.down)
+			if (up && type.second.used_up || down && type.second.used_down)
 			{
 				if (type.second.child_type_names.size() > 1)
 				{
@@ -714,7 +714,7 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 			f << "		if (chunk_size < BIG_PACKET_CHUNK_SIZE)" << std::endl;
 			f << "			break;" << std::endl;
 			f << "	}" << std::endl;
-			f << "}" << std::endl;
+			f << "}" << std::endl << std::endl;
 		}
 
 		{
@@ -739,7 +739,7 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 					f << "	socket.async_send_to(buffer->data(), endpoint, [buffer](const asio::error_code&, size_t) {});" << std::endl;
 					f << "}" << std::endl << std::endl;
 				}
-				if (up && type.up || down && type.down)
+				if (up && type.used_up || down && type.used_down)
 				{
 					if (type.child_type_names.size() > 1)
 					{
@@ -784,9 +784,19 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 
 		f << "	void DisconnectHandler(const asio::ip::udp::endpoint& endpoint, uint8_t code);" << std::endl;
 
+		f << std::endl;
+
 		for (auto& [name, type] : types)
 		{
-			if (up && type.up || down && type.down)
+			bool handlerNeeded = up && type.up || down && type.down;
+			handlerNeeded |= up && type.used_up || down && type.used_down;
+			auto parent = types.find(name);
+			while (parent->second.parent_name.size() > 0)
+			{
+				parent = types.find(parent->second.parent_name);
+				handlerNeeded |= up && parent->second.used_up || down && parent->second.used_down;
+			}
+			if (handlerNeeded)
 				f << "	void " << name << "Handler(const asio::ip::udp::endpoint& endpoint, const " << name << "& message);" << std::endl;
 		}
 
