@@ -172,7 +172,7 @@ void deserializeFieldCpp(std::ofstream& f, Field field, const std::map<std::stri
 			{
 				f << "		case " << types.at(child_type_name).child_type_index << ":" << std::endl;
 				f << "		{" << std::endl;
-				f << "			" << field.name << " = std::make_unique<" << child_type_name << ">();" << std::endl;
+				f << "			" << field.name << " = std::make_unique<" << translateCpp(child_type_name) << ">();" << std::endl;
 				Field value = field;
 				value.name = "value";
 				value.special = FS_NONE;
@@ -196,7 +196,7 @@ void deserializeFieldCpp(std::ofstream& f, Field field, const std::map<std::stri
 		{
 			f << "	if (is.get())" << std::endl;
 			f << "	{" << std::endl;
-			f << "		" << field.name << " = std::make_unique<" << field.type_name << ">();" << std::endl;
+			f << "		" << field.name << " = std::make_unique<" << translateCpp(field.type_name) << ">();" << std::endl;
 			Field value = field;
 			value.name = "value";
 			value.special = FS_NONE;
@@ -257,6 +257,7 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 			{
 				f << "#include <" << dependency << ">" << std::endl;
 			}
+			f << "#include <cstdint>" << std::endl << std::endl;
 			f << "#include <iostream>" << std::endl << std::endl;
 
 			for (auto& dependency : type.second.dependencies)
@@ -490,6 +491,7 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 
 		f << "	asio::io_context io_context;" << std::endl;
 		f << "	asio::ip::udp::socket socket;" << std::endl;
+		f << "	asio::executor_work_guard<asio::io_context::executor_type> work_guard;" << std::endl;
 
 		if (can_accept)
 		{
@@ -516,7 +518,7 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 		f << "const size_t MAX_SMALL_PACKET_SIZE = " << MAX_SMALL_PACKET_SIZE << ";" << std::endl;
 		f << "const size_t BIG_PACKET_CHUNK_SIZE = MAX_SMALL_PACKET_SIZE - " << 4 << ";" << std::endl;
 
-		f << link_name << "::" << link_name << "() : io_context(), socket(io_context)" << std::endl;
+		f << link_name << "::" << link_name << "() : io_context(), socket(io_context), work_guard(asio::make_work_guard(io_context))" << std::endl;
 		f << "{" << std::endl;
 		f << "}" << std::endl << std::endl;
 
@@ -528,24 +530,34 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 
 		f << "void " << link_name << "::Receive()" << std::endl;
 		f << "{" << std::endl;
-		f << "	std::thread t([this]()" << std::endl;
-		f << "		{" << std::endl;
-		f << "			while (true)" << std::endl;
+		f << "	{" << std::endl;
+		f << "		std::thread t([this]()" << std::endl;
 		f << "			{" << std::endl;
-		f << "				try" << std::endl;
+		f << "				while (true)" << std::endl;
 		f << "				{" << std::endl;
-		f << "					asio::streambuf buffer(65507); " << std::endl;
-		f << "					asio::ip::udp::endpoint endpoint;" << std::endl;
-		f << "					buffer.commit(socket.receive_from(buffer.prepare(65507), endpoint));" << std::endl;
-		f << "					Dispatch(buffer, endpoint);" << std::endl;
-		f << "				}" << std::endl;
-		f << "				catch (...)" << std::endl;
-		f << "				{" << std::endl;
+		f << "					try" << std::endl;
+		f << "					{" << std::endl;
+		f << "						asio::streambuf buffer(65507); " << std::endl;
+		f << "						asio::ip::udp::endpoint endpoint;" << std::endl;
+		f << "						buffer.commit(socket.receive_from(buffer.prepare(65507), endpoint));" << std::endl;
+		f << "						Dispatch(buffer, endpoint);" << std::endl;
+		f << "					}" << std::endl;
+		f << "					catch (...)" << std::endl;
+		f << "					{" << std::endl;
+		f << "					}" << std::endl;
 		f << "				}" << std::endl;
 		f << "			}" << std::endl;
-		f << "		}" << std::endl;
-		f << "	);" << std::endl;
-		f << "	t.detach();" << std::endl;
+		f << "		);" << std::endl;
+		f << "		t.detach();" << std::endl;
+		f << "	}" << std::endl;
+		f << "	{" << std::endl;
+		f << "		std::thread t([this]()" << std::endl;
+		f << "			{" << std::endl;
+		f << "				io_context.run();" << std::endl;
+		f << "			}" << std::endl;
+		f << "		);" << std::endl;
+		f << "		t.detach();" << std::endl;
+		f << "	}" << std::endl;
 		f << "}" << std::endl << std::endl;
 
 		if (can_connect)
@@ -700,16 +712,17 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 			f << "	if (it == connections.end())" << std::endl;
 			f << "		return;" << std::endl;
 			f << "	uint8_t message_id = it->second++;" << std::endl;
-			f << "	char chunk[BIG_PACKET_CHUNK_SIZE];" << std::endl;
 			f << "	for (uint16_t i = 0; i < 65535; ++i)" << std::endl;
 			f << "	{" << std::endl;
 			f << "		std::shared_ptr<asio::streambuf> partial_buffer = std::make_shared<asio::streambuf>();" << std::endl;
 			f << "		std::ostream os(partial_buffer.get());" << std::endl;
-			f << "		std::streamsize chunk_size = is.readsome(chunk, BIG_PACKET_CHUNK_SIZE);" << std::endl;
+			f << "		std::streamsize chunk_size = buffer->size() - i * BIG_PACKET_CHUNK_SIZE;" << std::endl;
+			f << "		if (chunk_size > BIG_PACKET_CHUNK_SIZE)" << std::endl;
+			f << "			chunk_size = BIG_PACKET_CHUNK_SIZE;" << std::endl;
 			f << "		os.put(255);" << std::endl;
 			f << "		os.write((char*)&message_id, sizeof(message_id));" << std::endl;
 			f << "		os.write((char*)&i, sizeof(i));" << std::endl;
-			f << "		os.write(chunk, chunk_size);" << std::endl;
+			f << "		os.write((char*)buffer->data().data() + i * BIG_PACKET_CHUNK_SIZE, chunk_size);" << std::endl;
 			f << "		socket.async_send_to(partial_buffer->data(), endpoint, [partial_buffer](const asio::error_code&, size_t) {});" << std::endl;
 			f << "		if (chunk_size < BIG_PACKET_CHUNK_SIZE)" << std::endl;
 			f << "			break;" << std::endl;

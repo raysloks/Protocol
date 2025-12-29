@@ -1,2 +1,0 @@
-int32 cornerNext
-int32 halfEdgeOpposite

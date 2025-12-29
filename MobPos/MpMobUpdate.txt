@@ -6,3 +6,4 @@ MpMobAurasUpdate * auras
 MpMobStateUpdate * state
 MpMobTypeUpdate * type
 MpMobCastUpdate * cast
+vec3 * facing

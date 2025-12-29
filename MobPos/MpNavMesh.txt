@@ -1,6 +1,3 @@
 down
 MpNavFace faces[]
-MpNavHalfEdge halfEdges[]
-MpNavVertex vertices[]
-MpNavCorner corners[]
-MpNavArc arcs[]
+vec3 vertices[]

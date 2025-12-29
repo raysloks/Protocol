@@ -1,0 +1,5 @@
+uint64 ability_id
+int64 start
+uint64 source
+uint64 target
+uint8 stage

@@ -1,2 +1,0 @@
-int32 arcNext
-int32 vertexHead

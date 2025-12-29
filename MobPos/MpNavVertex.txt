@@ -1,3 +1,0 @@
-vec3 position
-int32 cornerRoot
-int32 arcRoot

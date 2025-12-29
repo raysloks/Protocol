@@ -7,8 +7,8 @@ const std::map<std::string, std::string> writer_translations = { {"float", "floa
 	{"uint8", "byte"}, {"uint16", "ushort"}, {"uint32", "uint"}, {"uint64", "ulong"} };
 
 const std::map<std::string, std::string> reader_translations = { {"float", "Single"}, {"double", "Double"},
-	{"int8", "Int32"}, {"int16", "Int32"}, {"int32", "Int32"}, {"int64", "Int64"},
-	{"uint8", "UInt32"}, {"uint16", "UInt32"}, {"uint32", "UInt32"}, {"uint64", "UInt64"} };
+	{"int8", "SByte"}, {"int16", "Int16"}, {"int32", "Int32"}, {"int64", "Int64"},
+	{"uint8", "Byte"}, {"uint16", "UInt16"}, {"uint32", "UInt32"}, {"uint64", "UInt64"} };
 
 const std::map<std::string, std::string> basic_translations = { {"float", "float"}, {"double", "double"},
 	{"int8", "sbyte"}, {"int16", "short"}, {"int32", "int"}, {"int64", "long"},
@@ -213,7 +213,7 @@ void deserializeFieldCs(std::ofstream& f, Field field)
 		Field element = field;
 		element.name = "element";
 		element.special = FS_NONE;
-		if (element.superFlat())
+		if (element.superFlat() && false)
 		{
 			f << "			" << field.name << " = new List<" << translateCs(field.type_name) << ">(MemoryMarshal.Cast<byte, " << translateCs(field.type_name) << ">(reader.ReadBytes(Marshal.SizeOf(typeof(" << translateCs(field.type_name) << ")) * size)).ToArray());" << std::endl;
 		}
@@ -224,11 +224,11 @@ void deserializeFieldCs(std::ofstream& f, Field field)
 			f << "			{" << std::endl;
 			if (field.type)
 			{
-				f << "				" << field.type_name << " element = new " << field.type_name << "();" << std::endl;
+				f << "				" << translateCs(field.type_name) << " element = new " << field.type_name << "();" << std::endl;
 			}
 			else
 			{
-				f << "				" << field.type_name << " element;" << std::endl;
+				f << "				" << translateCs(field.type_name) << " element;" << std::endl;
 			}
 			deserializeFieldCs(f, element);
 			f << "				" << field.name << ".Add(element);" << std::endl;
@@ -419,7 +419,7 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 
 		f << "	public const int MaxSmallPacketSize = " << 508 << ";" << std::endl;
 		f << "	public const int BigPacketChunkSize = MaxSmallPacketSize - " << 4 << ";" << std::endl;
-		f << "	public const int MaxBigPacketChunkCount = " << 65535 << ";" << std::endl;
+		f << "	public const int MaxBigPacketChunkCount = " << 65536 << ";" << std::endl;
 		f << "	public const int MaxBigPacketSize = BigPacketChunkSize * MaxBigPacketChunkCount;" << std::endl;
 
 		f << std::endl;
@@ -435,7 +435,7 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 		f << "		{" << std::endl;
 		f << "			++chunksReceived;" << std::endl;
 		f << "			int bytesRead = reader.Read(buffer, chunkIndex * BigPacketChunkSize, BigPacketChunkSize);" << std::endl;
-		f << "			if (bytesRead != BigPacketChunkSize || chunkIndex == MaxBigPacketChunkCount)" << std::endl;
+		f << "			if (bytesRead != BigPacketChunkSize || chunkIndex == MaxBigPacketChunkCount - 1)" << std::endl;
 		f << "				lastChunkIndex = chunkIndex;" << std::endl;
 		f << "		}" << std::endl;
 		f << std::endl;
@@ -464,6 +464,7 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 		f << "	public void Open(IPEndPoint endpoint)" << std::endl;
 		f << "	{" << std::endl;
 		f << "		client = new UdpClient(endpoint);" << std::endl;
+		f << "		client.Client.ReceiveBufferSize = " << 0x2000000 << ";" << std::endl;
 		f << "	}" << std::endl << std::endl;
 
 		f << "	public void Receive()" << std::endl;

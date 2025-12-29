@@ -1,7 +1,0 @@
-int32 vertexLeft
-int32 vertexRight
-int32 vertexOpposite
-int32 face
-int32 halfEdgeLeft
-int32 halfEdgeRight
-int32 halfEdgeReverse
