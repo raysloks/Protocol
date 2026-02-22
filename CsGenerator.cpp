@@ -39,7 +39,7 @@ void serializeFieldCs(std::ofstream& f, Field field)
 		{
 			f << "		{" << std::endl;
 			f << "			byte[] bytes = System.Text.Encoding.UTF8.GetBytes(" << field.name << ");" << std::endl;
-			f << "			ushort size = (ushort)bytes.Length;" << std::endl;
+			f << "			uint size = (uint)bytes.Length;" << std::endl;
 			f << "			writer.Write(size);" << std::endl;
 			f << "			writer.Write(bytes);" << std::endl;
 			f << "		}" << std::endl;
@@ -125,7 +125,7 @@ void serializeFieldCs(std::ofstream& f, Field field)
 		break;
 	case FS_VECTOR:
 		f << "		{" << std::endl;
-		f << "			ushort size = (ushort)this." << field.name << ".Count;" << std::endl;
+		f << "			uint size = (uint)this." << field.name << ".Count;" << std::endl;
 		f << "			writer.Write(size);" << std::endl;
 		Field i = field;
 		i.name = "i";
@@ -159,8 +159,8 @@ void deserializeFieldCs(std::ofstream& f, Field field)
 		if (field.type_name == "string")
 		{
 			f << "		{" << std::endl;
-			f << "			ushort size = reader.ReadUInt16();" << std::endl;
-			f << "			byte[] bytes = reader.ReadBytes(size);" << std::endl;
+			f << "			uint size = reader.ReadUInt32();" << std::endl;
+			f << "			byte[] bytes = reader.ReadBytes((int)size);" << std::endl;
 			f << "			" << field.name << " = System.Text.Encoding.UTF8.GetString(bytes);" << std::endl;
 			f << "		}" << std::endl;
 			break;
@@ -209,7 +209,7 @@ void deserializeFieldCs(std::ofstream& f, Field field)
 		break;
 	case FS_VECTOR:
 		f << "		{" << std::endl;
-		f << "			ushort size = reader.ReadUInt16();" << std::endl;
+		f << "			uint size = reader.ReadUInt32();" << std::endl;
 		Field element = field;
 		element.name = "element";
 		element.special = FS_NONE;

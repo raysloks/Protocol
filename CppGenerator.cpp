@@ -39,7 +39,7 @@ void serializeFieldCpp(std::ofstream& f, Field field, const std::map<std::string
 		if (field.type_name == "string")
 		{
 			f << "	{" << std::endl;
-			f << "		uint16_t size = " << field.name << ".size();" << std::endl;
+			f << "		uint32_t size = " << field.name << ".size();" << std::endl;
 			f << "		os.write((char*)&size, sizeof(size));" << std::endl;
 			f << "		os.write((char*)" << field.name << ".data(), size);" << std::endl;
 			f << "	}" << std::endl;
@@ -111,7 +111,7 @@ void serializeFieldCpp(std::ofstream& f, Field field, const std::map<std::string
 	case FS_VECTOR:
 	{
 		f << "	{" << std::endl;
-		f << "		uint16_t size = " << field.name << ".size();" << std::endl;
+		f << "		uint32_t size = " << field.name << ".size();" << std::endl;
 		f << "		os.write((char*)&size, sizeof(size));" << std::endl;
 		Field element = field;
 		element.name = "element";
@@ -152,7 +152,7 @@ void deserializeFieldCpp(std::ofstream& f, Field field, const std::map<std::stri
 		if (field.type_name == "string")
 		{
 			f << "	{" << std::endl;
-			f << "		uint16_t size;" << std::endl;
+			f << "		uint32_t size;" << std::endl;
 			f << "		is.read((char*)&size, sizeof(size));" << std::endl;
 			f << "		" << field.name << ".resize(size);" << std::endl;
 			f << "		is.read((char*)" << field.name << ".data(), size);" << std::endl;
@@ -216,7 +216,7 @@ void deserializeFieldCpp(std::ofstream& f, Field field, const std::map<std::stri
 	case FS_VECTOR:
 	{
 		f << "	{" << std::endl;
-		f << "		uint16_t size;" << std::endl;
+		f << "		uint32_t size;" << std::endl;
 		f << "		is.read((char*)&size, sizeof(size));" << std::endl;
 		f << "		" << field.name << ".resize(size);" << std::endl;
 		Field element = field;
