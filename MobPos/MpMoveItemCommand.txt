@@ -1,0 +1,5 @@
+is MpCommand
+int32 source_slot
+MpItem source_item
+int32 target_slot
+MpItem target_item

@@ -1,0 +1,9 @@
+uint64 source_id
+uint64 target_id
+uint64 source_uid
+uint64 target_uid
+vec3 position
+vec3 source_position
+vec3 target_position
+vec3 direction
+int64 time

@@ -32,6 +32,8 @@ bool Field::superFlat() const
 	}
 	if (type_name == "string")
 		return false;
+	if (type_name == "uuid")
+		return false;
 	return true;
 }
 
@@ -57,6 +59,8 @@ int Field::maxSize() const
 		base_size = 8;
 	if (type_name == "uint64")
 		base_size = 8;
+	if (type_name == "uuid")
+		base_size = 16;
 	if (type_name == "string")
 		return 65535 + 2;
 	if (type)

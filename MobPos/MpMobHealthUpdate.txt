@@ -1,4 +1,3 @@
-down
 int64 current
 int64 cap
 MpLinearResourceChange changes[]

@@ -1,2 +1,4 @@
-uint64 uid
-uint32 team
+int64 uid
+uint64 state
+int32 team
+int64 target

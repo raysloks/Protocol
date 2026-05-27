@@ -1,0 +1,3 @@
+is MpCommand
+int32 slot
+MpItem item

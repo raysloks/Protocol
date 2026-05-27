@@ -1,3 +1,6 @@
 int32 a
 int32 b
 int32 c
+int32 ab_vertical
+int32 bc_vertical
+int32 ca_vertical

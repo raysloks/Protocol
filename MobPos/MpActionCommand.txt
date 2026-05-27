@@ -1,2 +1,6 @@
 is MpCommand
 uint8 action
+uint64 ability
+uint64 target_unit
+vec3 target_position
+vec3 facing

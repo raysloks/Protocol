@@ -1,0 +1,16 @@
+down
+int64 id
+int64 uid
+int64 template_id
+int64 time_start
+int64 time_end
+int64 state
+int64 source_id
+int64 target_id
+int64 source_uid
+int64 target_uid
+vec3 position
+vec3 source_position
+vec3 target_position
+vec3 direction
+MpPath path

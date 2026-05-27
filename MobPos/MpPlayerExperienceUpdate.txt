@@ -1,2 +1,3 @@
 down
+int64 level
 int64 experience

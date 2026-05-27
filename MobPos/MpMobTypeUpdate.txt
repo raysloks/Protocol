@@ -1,2 +1,1 @@
-down
-uint64 template_id
+int64 template_id

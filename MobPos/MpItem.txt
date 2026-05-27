@@ -1,0 +1,2 @@
+uint32 template_id
+uint32 data

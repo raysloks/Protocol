@@ -3,40 +3,40 @@
   "WorkspaceRootPath": "C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\CppGenerator.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|solutionrelative:CppGenerator.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\CsGenerator.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|solutionrelative:CsGenerator.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\CppGenerator.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|solutionrelative:CppGenerator.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\Structure.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|solutionrelative:Structure.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
+      "AbsoluteMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\Field.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|solutionrelative:Field.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\Field.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|solutionrelative:Field.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\Field.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|solutionrelative:Field.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+      "AbsoluteMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|solutionrelative:main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\CppGenerator.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|solutionrelative:CppGenerator.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\CsGenerator.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|solutionrelative:CsGenerator.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\Structure.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|solutionrelative:Structure.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|solutionrelative:main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+      "AbsoluteMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\CsGenerator.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|solutionrelative:CsGenerator.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\Config.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
@@ -50,11 +50,11 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 6,
+          "SelectedChildIndex": 7,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 6,
               "Title": "CppGenerator.h",
               "DocumentMoniker": "C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\CppGenerator.h",
               "RelativeDocumentMoniker": "CppGenerator.h",
@@ -66,7 +66,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 3,
               "Title": "Field.h",
               "DocumentMoniker": "C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\Field.h",
               "RelativeDocumentMoniker": "Field.h",
@@ -78,13 +78,13 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 4,
               "Title": "Field.cpp",
               "DocumentMoniker": "C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\Field.cpp",
               "RelativeDocumentMoniker": "Field.cpp",
               "ToolTip": "C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\Field.cpp",
               "RelativeToolTip": "Field.cpp",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAABAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAD4AAAARAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2025-01-09T13:36:25.476Z"
             },
@@ -96,7 +96,7 @@
               "RelativeDocumentMoniker": "Structure.h",
               "ToolTip": "C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\Structure.h",
               "RelativeToolTip": "Structure.h",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAACAAAAAIAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABkAAAAKAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
               "WhenOpened": "2025-01-09T13:13:28.729Z"
             },
@@ -108,13 +108,13 @@
               "RelativeDocumentMoniker": "Structure.cpp",
               "ToolTip": "C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\Structure.cpp",
               "RelativeToolTip": "Structure.cpp",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAIwAgAAAABAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAAZAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2025-01-09T13:36:02.977Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 5,
               "Title": "main.cpp",
               "DocumentMoniker": "C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\main.cpp",
               "RelativeDocumentMoniker": "main.cpp",
@@ -126,32 +126,32 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "CppGenerator.cpp",
               "DocumentMoniker": "C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\CppGenerator.cpp",
               "RelativeDocumentMoniker": "CppGenerator.cpp",
               "ToolTip": "C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\CppGenerator.cpp",
               "RelativeToolTip": "CppGenerator.cpp",
-              "ViewState": "AgIAAPYBAAAAAAAAAAAqwAgCAAB+AAAAAAAAAA==",
+              "ViewState": "AgIAAIAAAAAAAAAAAAAgwCAAAAAbAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2025-01-03T09:10:51.95Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-01-03T09:10:51.95Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 0,
               "Title": "CsGenerator.cpp",
               "DocumentMoniker": "C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\CsGenerator.cpp",
               "RelativeDocumentMoniker": "CsGenerator.cpp",
               "ToolTip": "C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\CsGenerator.cpp",
               "RelativeToolTip": "CsGenerator.cpp",
-              "ViewState": "AgIAAKYAAAAAAAAAAAAqwNMAAAARAAAAAAAAAA==",
+              "ViewState": "AgIAAPoBAAAAAAAAAAAAAAgCAABMAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2025-01-03T09:07:34.437Z"
+              "WhenOpened": "2025-01-03T09:07:34.437Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 8,
               "Title": "CsGenerator.h",
               "DocumentMoniker": "C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\CsGenerator.h",
               "RelativeDocumentMoniker": "CsGenerator.h",

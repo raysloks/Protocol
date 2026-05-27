@@ -1,2 +1,0 @@
-MpActionCommand action
-vec2 direction

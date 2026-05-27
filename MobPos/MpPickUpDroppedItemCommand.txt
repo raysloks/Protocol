@@ -1,0 +1,3 @@
+is MpCommand
+int64 dropped_item_id
+int64 dropped_item_uid

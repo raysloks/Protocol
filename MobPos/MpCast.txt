@@ -1,5 +1,6 @@
 uint64 ability_id
+int64 cast_id
 int64 start
-uint64 source
-uint64 target
+int64 end
+MpContext context
 uint8 stage

@@ -1,2 +1,0 @@
-is MpActionCommand
-uint64 target
