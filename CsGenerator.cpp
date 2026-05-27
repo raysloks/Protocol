@@ -68,7 +68,13 @@ void serializeFieldCs(std::ofstream& f, Field field)
 		}
 		if (field.type_name == "uuid")
 		{
-			f << "		writer.Write(" << field.name << ".ToByteArray());" << std::endl;
+			f << "		{" << std::endl;
+			f << "			byte[] bytes = " << field.name << ".ToByteArray();" << std::endl;
+			f << "			(bytes[0], bytes[1], bytes[2], bytes[3]) = (bytes[3], bytes[2], bytes[1], bytes[0]);" << std::endl;
+			f << "			(bytes[4], bytes[5]) = (bytes[5], bytes[4]);" << std::endl;
+			f << "			(bytes[6], bytes[7]) = (bytes[7], bytes[6]);" << std::endl;
+			f << "			writer.Write(bytes);" << std::endl;
+			f << "		}" << std::endl;
 			break;
 		}
 		if (writer_translations.find(field.type_name) != writer_translations.end())
@@ -182,7 +188,13 @@ void deserializeFieldCs(std::ofstream& f, Field field)
 		}
 		if (field.type_name == "uuid")
 		{
-			f << "		" << field.name << " = new Guid(reader.ReadBytes(16));" << std::endl;
+			f << "		{" << std::endl;
+			f << "			byte[] bytes = reader.ReadBytes(16);" << std::endl;
+			f << "			(bytes[0], bytes[1], bytes[2], bytes[3]) = (bytes[3], bytes[2], bytes[1], bytes[0]);" << std::endl;
+			f << "			(bytes[4], bytes[5]) = (bytes[5], bytes[4]);" << std::endl;
+			f << "			(bytes[6], bytes[7]) = (bytes[7], bytes[6]);" << std::endl;
+			f << "			" << field.name << " = new Guid(bytes);" << std::endl;
+			f << "		}" << std::endl;
 			break;
 		}
 		if (reader_translations.find(field.type_name) != reader_translations.end())
