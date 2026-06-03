@@ -1,3 +1,4 @@
 int64 start
 int64 duration
 int64 amount
+int64 evaluated
