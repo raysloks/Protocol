@@ -1,0 +1,2 @@
+int64 target_id
+int64 target_uid

@@ -78,16 +78,16 @@ void serializeFieldCpp(std::ofstream& f, Field field, const std::map<std::string
 			}
 			f << "		}" << std::endl;
 			f << "	}" << std::endl;
-			f << "	else" << std::endl;
+			/*f << "	else" << std::endl;
 			f << "	{" << std::endl;
 			f << "		os.put(0xff);" << std::endl;
-			f << "	}" << std::endl;
+			f << "	}" << std::endl;*/
 		}
 		else
 		{
 			f << "	if (" << field.name << ")" << std::endl;
 			f << "	{" << std::endl;
-			f << "		os.put(true);" << std::endl;
+			//f << "		os.put(true);" << std::endl;
 			Field value = field;
 			value.name = "value";
 			value.special = FS_NONE;
@@ -97,14 +97,14 @@ void serializeFieldCpp(std::ofstream& f, Field field, const std::map<std::string
 			}
 			else
 			{
-				f << "		auto&& value = *" << field.name << ";" << std::endl;
+				f << "		auto& value = *" << field.name << ";" << std::endl;
 				serializeFieldCpp(f, value, types);
 			}
 			f << "	}" << std::endl;
-			f << "	else" << std::endl;
+			/*f << "	else" << std::endl;
 			f << "	{" << std::endl;
 			f << "		os.put(false);" << std::endl;
-			f << "	}" << std::endl;
+			f << "	}" << std::endl;*/
 		}
 	}
 	break;
@@ -125,7 +125,7 @@ void serializeFieldCpp(std::ofstream& f, Field field, const std::map<std::string
 		{
 			f << "		for (size_t i = 0; i < size; ++i)" << std::endl;
 			f << "		{" << std::endl;
-			f << "			auto&& element = " << field.name << "[i];" << std::endl;
+			f << "			auto& element = " << field.name << "[i];" << std::endl;
 			serializeFieldCpp(f, element, types);
 			f << "		}" << std::endl;
 		}
@@ -166,6 +166,8 @@ void deserializeFieldCpp(std::ofstream& f, Field field, const std::map<std::stri
 	{
 		if (field.type && field.type->child_type_names.size() > 1)
 		{
+			f << "	if (_nullable_bitfield & (1UL << " << field.nullable_index << "))" << std::endl;
+			f << "	{" << std::endl;
 			f << "	switch (is.get())" << std::endl;
 			f << "	{" << std::endl;
 			for (auto& child_type_name : field.type->child_type_names)
@@ -191,10 +193,11 @@ void deserializeFieldCpp(std::ofstream& f, Field field, const std::map<std::stri
 			f << "		default:" << std::endl;
 			f << "			break;" << std::endl;
 			f << "	}" << std::endl;
+			f << "	}" << std::endl;
 		}
 		else
 		{
-			f << "	if (is.get())" << std::endl;
+			f << "	if (_nullable_bitfield & (1UL << " << field.nullable_index << "))" << std::endl;
 			f << "	{" << std::endl;
 			f << "		" << field.name << " = std::make_unique<" << translateCpp(field.type_name) << ">();" << std::endl;
 			Field value = field;
@@ -206,7 +209,7 @@ void deserializeFieldCpp(std::ofstream& f, Field field, const std::map<std::stri
 			}
 			else
 			{
-				f << "		auto&& value = *" << field.name << ";" << std::endl;
+				f << "		auto& value = *" << field.name << ";" << std::endl;
 				deserializeFieldCpp(f, value, types);
 			}
 			f << "	}" << std::endl;
@@ -230,7 +233,7 @@ void deserializeFieldCpp(std::ofstream& f, Field field, const std::map<std::stri
 		{
 			f << "		for (size_t i = 0; i < size; ++i)" << std::endl;
 			f << "		{" << std::endl;
-			f << "			auto&& element = " << field.name << "[i];" << std::endl;
+			f << "			auto& element = " << field.name << "[i];" << std::endl;
 			deserializeFieldCpp(f, element, types);
 			f << "		}" << std::endl;
 		}
@@ -375,6 +378,21 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 			}
 			else
 			{
+				if (type.second.nullable_field_count > 0)
+				{
+					f << "	uint64_t _nullable_bitfield = 0UL;" << std::endl;
+					for (Field field : type.second.parent_fields)
+					{
+						if (field.special == FS_POINTER)
+							f << "	if (this->" << field.name << ") _nullable_bitfield |= 1UL << " << field.nullable_index << ";" << std::endl;
+					}
+					for (Field field : type.second.fields)
+					{
+						if (field.special == FS_POINTER)
+							f << "	if (this->" << field.name << ") _nullable_bitfield |= 1UL << " << field.nullable_index << ";" << std::endl;
+					}
+					f << "	os.write((char*)&_nullable_bitfield, " << (type.second.nullable_field_count + 7) / 8 << ");" << std::endl;
+				}
 				for (Field field : type.second.parent_fields)
 				{
 					field.name = "this->" + field.name;
@@ -398,6 +416,11 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 			}
 			else
 			{
+				if (type.second.nullable_field_count > 0)
+				{
+					f << "	uint64_t _nullable_bitfield;" << std::endl;
+					f << "	is.read((char*)&_nullable_bitfield, " << (type.second.nullable_field_count + 7) / 8 << ");" << std::endl;
+				}
 				for (Field field : type.second.parent_fields)
 				{
 					field.name = "this->" + field.name;

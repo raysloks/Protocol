@@ -67,11 +67,11 @@ int Field::maxSize() const
 	{
 		base_size = type->maxSize();
 		if (type->child_type_names.size() > 0 && special == FS_POINTER)
-			base_size += 1;
+			base_size += 1; // TODO shrink this when combined nullables have been implemented
 	}
 	if (special == FS_VECTOR)
 		return base_size * 65535 + 2;
 	if (special == FS_POINTER)
-		return base_size + 1;
+		return base_size + 1; // TODO shrink this when combined nullables have been implemented
 	return base_size;
 }

@@ -266,6 +266,28 @@ int main()
 			}
 		}
 
+		// calculate combined nullables
+		for (auto& type : types)
+		{
+			type.second.nullable_field_count = 0;
+			for (auto& field : type.second.parent_fields)
+			{
+				if (field.special == FS_POINTER)
+				{
+					field.nullable_index = type.second.nullable_field_count;
+					++type.second.nullable_field_count;
+				}
+			}
+			for (auto& field : type.second.fields)
+			{
+				if (field.special == FS_POINTER)
+				{
+					field.nullable_index = type.second.nullable_field_count;
+					++type.second.nullable_field_count;
+				}
+			}
+		}
+
 		if (error)
 		{
 			std::cout << "Protocol code generation failed, there were error(s) in the protocol." << std::endl;

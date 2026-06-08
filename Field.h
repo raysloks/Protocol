@@ -17,6 +17,8 @@ public:
 	std::string type_name, name;
 	FieldSpecial special;
 
+	size_t nullable_index;
+
 	Structure * type;
 
 	bool operator==(const Field& rhs) const;

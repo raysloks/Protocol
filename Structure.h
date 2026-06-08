@@ -21,6 +21,8 @@ public:
 	std::set<std::string> child_type_names;
 	int child_type_index;
 
+	size_t nullable_field_count;
+
 	bool operator==(const Structure& rhs) const;
 
 	bool flat() const;

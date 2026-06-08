@@ -91,10 +91,10 @@ void serializeFieldCs(std::ofstream& f, Field field)
 			value.special = FS_NONE;
 			serializeFieldCs(f, value);
 			f << "		}" << std::endl;
-			f << "		else" << std::endl;
+			/*f << "		else" << std::endl;
 			f << "		{" << std::endl;
 			f << "			writer.Write((byte)0xff);" << std::endl;
-			f << "		}" << std::endl;
+			f << "		}" << std::endl;*/
 		}
 		else
 		{
@@ -102,30 +102,30 @@ void serializeFieldCs(std::ofstream& f, Field field)
 			{
 				f << "		if (" << field.name << ".HasValue)" << std::endl;
 				f << "		{" << std::endl;
-				f << "			writer.Write(true);" << std::endl;
+				//f << "			writer.Write(true);" << std::endl;
 				Field value = field;
 				value.special = FS_NONE;
 				value.name += ".Value";
 				serializeFieldCs(f, value);
 				f << "		}" << std::endl;
-				f << "		else" << std::endl;
+				/*f << "		else" << std::endl;
 				f << "		{" << std::endl;
 				f << "			writer.Write(false);" << std::endl;
-				f << "		}" << std::endl;
+				f << "		}" << std::endl;*/
 			}
 			else
 			{
 				f << "		if (" << field.name << " != null)" << std::endl;
 				f << "		{" << std::endl;
-				f << "			writer.Write(true);" << std::endl;
+				//f << "			writer.Write(true);" << std::endl;
 				Field value = field;
 				value.special = FS_NONE;
 				serializeFieldCs(f, value);
 				f << "		}" << std::endl;
-				f << "		else" << std::endl;
+				/*f << "		else" << std::endl;
 				f << "		{" << std::endl;
 				f << "			writer.Write(false);" << std::endl;
-				f << "		}" << std::endl;
+				f << "		}" << std::endl;*/
 			}
 		}
 		break;
@@ -205,13 +205,16 @@ void deserializeFieldCs(std::ofstream& f, Field field)
 	case FS_POINTER:
 		if (field.type && field.type->child_type_names.size() > 1)
 		{
+			f << "		if ((_nullable_bitfield & (1UL << " << field.nullable_index << ")) != 0)" << std::endl;
+			f << "		{" << std::endl;
 			Field value = field;
 			value.special = FS_NONE;
 			deserializeFieldCs(f, value);
+			f << "		}" << std::endl;
 		}
 		else
 		{
-			f << "		if (reader.ReadBoolean())" << std::endl;
+			f << "		if ((_nullable_bitfield & (1UL << " << field.nullable_index << ")) != 0)" << std::endl;
 			f << "		{" << std::endl;
 			Field value = field;
 			value.special = FS_NONE;
@@ -333,11 +336,45 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 		{
 			f << "		writer.Write((byte)" << type.second.child_type_index << ");" << std::endl;
 		}
-		for (auto field : type.second.parent_fields)
+		if (type.second.nullable_field_count > 0)
+		{
+			f << "	ulong _nullable_bitfield = 0UL;";
+			for (Field field : type.second.parent_fields)
+			{
+				if (field.special == FS_POINTER)
+				{
+					if (field.shouldBeNullable())
+					{
+						f << "	if (" << field.name << ".HasValue) _nullable_bitfield |= 1UL << " << field.nullable_index << ";" << std::endl;
+					}
+					else
+					{
+						f << "	if (" << field.name << " != null) _nullable_bitfield |= 1UL << " << field.nullable_index << ";" << std::endl;
+					}
+				}
+			}
+			for (Field field : type.second.fields)
+			{
+				if (field.special == FS_POINTER)
+				{
+					if (field.shouldBeNullable())
+					{
+						f << "	if (" << field.name << ".HasValue) _nullable_bitfield |= 1UL << " << field.nullable_index << ";" << std::endl;
+					}
+					else
+					{
+						f << "	if (" << field.name << " != null) _nullable_bitfield |= 1UL << " << field.nullable_index << ";" << std::endl;
+					}
+				}
+			}
+			for (int i = 0; i < type.second.nullable_field_count; i += 8)
+				f << "	writer.Write((byte)(_nullable_bitfield >> " << i << "));" << std::endl;
+		}
+		for (Field field : type.second.parent_fields)
 		{
 			serializeFieldCs(f, field);
 		}
-		for (auto field : type.second.fields)
+		for (Field field : type.second.fields)
 		{
 			serializeFieldCs(f, field);
 		}
@@ -363,12 +400,18 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 				if (child_type_name == type.first)
 				{
 					f << "				" << type.first << " _ret = new();" << std::endl;
-					for (auto field : type.second.parent_fields)
+					if (type.second.nullable_field_count > 0)
+					{
+						f << "	ulong _nullable_bitfield = 0UL;" << std::endl;
+						for (int i = 0; i < type.second.nullable_field_count; i += 8)
+							f << "	_nullable_bitfield |= ((ulong)reader.ReadByte()) << " << i << ";" << std::endl;
+					}
+					for (Field field : type.second.parent_fields)
 					{
 						field.name = "_ret." + field.name;
 						deserializeFieldCs(f, field);
 					}
-					for (auto field : type.second.fields)
+					for (Field field : type.second.fields)
 					{
 						field.name = "_ret." + field.name;
 						deserializeFieldCs(f, field);
@@ -387,12 +430,18 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 		else
 		{
 			f << "		" << type.first << " _ret = new();" << std::endl;
-			for (auto field : type.second.parent_fields)
+			if (type.second.nullable_field_count > 0)
+			{
+				f << "	ulong _nullable_bitfield = 0UL;" << std::endl;
+				for (int i = 0; i < type.second.nullable_field_count; i += 8)
+					f << "	_nullable_bitfield |= ((ulong)reader.ReadByte()) << " << i << ";" << std::endl;
+			}
+			for (Field field : type.second.parent_fields)
 			{
 				field.name = "_ret." + field.name;
 				deserializeFieldCs(f, field);
 			}
-			for (auto field : type.second.fields)
+			for (Field field : type.second.fields)
 			{
 				field.name = "_ret." + field.name;
 				deserializeFieldCs(f, field);
