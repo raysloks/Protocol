@@ -4,18 +4,24 @@
 
 const std::map<std::string, std::string> writer_translations = { {"float", "float"}, {"double", "double"},
 	{"int8", "sbyte"}, {"int16", "short"}, {"int32", "int"}, {"int64", "long"},
-	{"uint8", "byte"}, {"uint16", "ushort"}, {"uint32", "uint"}, {"uint64", "ulong"} };
+	{"uint8", "byte"}, {"uint16", "ushort"}, {"uint32", "uint"}, {"uint64", "ulong"},
+	{"bool", "bool"}
+};
 
 const std::map<std::string, std::string> reader_translations = { {"float", "Single"}, {"double", "Double"},
 	{"int8", "SByte"}, {"int16", "Int16"}, {"int32", "Int32"}, {"int64", "Int64"},
-	{"uint8", "Byte"}, {"uint16", "UInt16"}, {"uint32", "UInt32"}, {"uint64", "UInt64"} };
+	{"uint8", "Byte"}, {"uint16", "UInt16"}, {"uint32", "UInt32"}, {"uint64", "UInt64"},
+	{"bool", "Boolean"}
+};
 
 const std::map<std::string, std::string> basic_translations = { {"float", "float"}, {"double", "double"},
 	{"int8", "sbyte"}, {"int16", "short"}, {"int32", "int"}, {"int64", "long"},
 	{"uint8", "byte"}, {"uint16", "ushort"}, {"uint32", "uint"}, {"uint64", "ulong"},
+	{"bool", "bool"},
 	{"string", "string"},
 	{"vec2", "Vector2"}, {"vec3", "Vector3"}, {"vec4", "Vector4"},
-	{"uuid", "Guid"} };
+	{"uuid", "Guid"}
+};
 
 std::string translateCs(const std::string& type)
 {

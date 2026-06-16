@@ -9,4 +9,5 @@ MpMobTypeUpdate * type
 MpMobCastUpdate * cast
 MpMobTargetUpdate * target
 MpMobTeamUpdate * team
+MpMobEquipmentUpdate * equipment
 vec3 * facing

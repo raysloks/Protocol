@@ -4,3 +4,4 @@ int64 start
 int64 end
 MpContext context
 uint8 stage
+bool autocast
