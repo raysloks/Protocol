@@ -2,4 +2,6 @@ down
 uint64 id
 string name
 MpPlayerInventoryUpdate inventory
+MpPlayerMobAbilitiesUpdate abilities
+MpPlayerMobActionsUpdate actions
 MpPlayerExperienceUpdate experience

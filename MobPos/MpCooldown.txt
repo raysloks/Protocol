@@ -1,0 +1,2 @@
+uint32 ability_id
+int64 cooldown_end

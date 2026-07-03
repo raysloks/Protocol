@@ -1,3 +1,2 @@
 down
-uint64 id
-uint64 abilities[]
+uint32 abilities[]

@@ -7,3 +7,4 @@ vec3 source_position
 vec3 target_position
 vec3 direction
 int64 time
+int8 weapon_index
