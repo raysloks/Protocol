@@ -1,0 +1,3 @@
+vec3 primary_color
+vec3 secondary_color
+uint8 hair

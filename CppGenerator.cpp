@@ -825,7 +825,8 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 		for (auto& [name, type] : types)
 		{
 			bool handlerNeeded = up && type.up || down && type.down;
-			handlerNeeded |= up && type.used_up || down && type.used_down;
+			if (type.child_type_names.size() > 1)
+				handlerNeeded |= up && type.used_up || down && type.used_down;
 			auto parent = types.find(name);
 			while (parent->second.parent_name.size() > 0)
 			{

@@ -1,1 +1,4 @@
 int64 template_id
+uuid npc_id
+string name
+MpPlayerAppearance * appearance

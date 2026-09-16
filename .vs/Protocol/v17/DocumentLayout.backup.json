@@ -3,12 +3,12 @@
   "WorkspaceRootPath": "C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\CsGenerator.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|solutionrelative:CsGenerator.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\CppGenerator.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|solutionrelative:CppGenerator.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\CsGenerator.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|solutionrelative:CsGenerator.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{0445CC95-534A-49DD-B28F-6D7F24CFFA15}|Protocol.vcxproj|C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
@@ -26,7 +26,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 3,
+          "SelectedChildIndex": 2,
           "Children": [
             {
               "$type": "Document",
@@ -48,31 +48,33 @@
               "RelativeDocumentMoniker": "main.cpp",
               "ToolTip": "C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\main.cpp",
               "RelativeToolTip": "main.cpp",
-              "ViewState": "AgIAAOEAAAAAAAAAAAAAABoBAAAYAAAAAAAAAA==",
+              "ViewState": "AgIAAK4AAAAAAAAAAAAAABoBAAAYAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2026-06-05T11:32:02.905Z"
+              "WhenOpened": "2026-06-05T11:32:02.905Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 0,
               "Title": "CppGenerator.cpp",
               "DocumentMoniker": "C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\CppGenerator.cpp",
               "RelativeDocumentMoniker": "CppGenerator.cpp",
               "ToolTip": "C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\CppGenerator.cpp",
               "RelativeToolTip": "CppGenerator.cpp",
-              "ViewState": "AgIAAAsBAAAAAAAAAAAAAIYBAAAmAAAAAAAAAA==",
+              "ViewState": "AgIAAAYDAAAAAAAAAAAAADsDAAAnAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2025-01-03T09:10:51.95Z"
+              "WhenOpened": "2025-01-03T09:10:51.95Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "CsGenerator.cpp",
               "DocumentMoniker": "C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\CsGenerator.cpp",
               "RelativeDocumentMoniker": "CsGenerator.cpp",
               "ToolTip": "C:\\Users\\Emil\\Documents\\GitHub\\Protocol\\CsGenerator.cpp",
               "RelativeToolTip": "CsGenerator.cpp",
-              "ViewState": "AgIAANgAAAAAAAAAAAAAACUAAAAOAAAAAAAAAA==",
+              "ViewState": "AgIAADUBAAAAAAAAAAAAAPYAAAAEAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2025-01-03T09:07:34.437Z",
               "EditorCaption": ""

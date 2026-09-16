@@ -1,0 +1,4 @@
+uuid id
+string name
+MpPlayerAppearance appearance
+MpItem equipment[]

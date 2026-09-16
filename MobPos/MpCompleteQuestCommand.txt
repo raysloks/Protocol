@@ -1,0 +1,4 @@
+is MpCommand
+uint64 quest
+uint64 target
+uint8 reward[]
