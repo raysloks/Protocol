@@ -1,4 +1,6 @@
 uuid id
 string name
+int32 character_class
+int32 level
 MpPlayerAppearance appearance
 MpItem equipment[]

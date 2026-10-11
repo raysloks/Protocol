@@ -1,3 +1,4 @@
 down
-uint64 quest
-uint64 progress[]
+int32 quest
+int32 completions
+int32 progress[]

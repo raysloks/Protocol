@@ -1,6 +1,7 @@
 down
 uint64 id
 string name
+int32 character_class
 MpPlayerInventoryUpdate inventory
 MpPlayerMobAbilitiesUpdate abilities
 MpPlayerMobActionsUpdate actions

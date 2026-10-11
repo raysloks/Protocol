@@ -1,0 +1,5 @@
+is MpCommand
+uint64 target
+uint64 vendor
+uint64 offer
+uint64 count

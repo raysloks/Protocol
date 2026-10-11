@@ -6,6 +6,6 @@ class CppGenerator :
 	public Generator
 {
 public:
-	void generate(const std::map<std::string, Structure>& types, const Protocol& protocol) const;
+	void generate(std::map<std::string, Structure>& types, const Protocol& protocol) const;
 };
 

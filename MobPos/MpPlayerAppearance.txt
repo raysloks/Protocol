@@ -1,3 +1,6 @@
 vec3 primary_color
 vec3 secondary_color
-uint8 hair
+int32 hair
+vec3 hair_color
+int32 pattern
+vec3 pattern_color

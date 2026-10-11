@@ -260,7 +260,7 @@ void deserializeFieldCs(std::ofstream& f, Field field)
 	}
 }
 
-void CsGenerator::generate(const std::map<std::string, Structure>& types, const Protocol& protocol) const
+void CsGenerator::generate(std::map<std::string, Structure>& types, const Protocol& protocol) const
 {
 	auto destination_path = folder;
 
@@ -474,6 +474,7 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 		f << "using System.IO;" << std::endl;
 		f << "using System.Net;" << std::endl;
 		f << "using System.Net.Sockets;" << std::endl << std::endl;
+		f << "using UnityEngine;" << std::endl << std::endl;
 
 		f << "// WARNING : Auto-generated file, changes made will disappear when re-generated." << std::endl << std::endl;
 
@@ -495,14 +496,23 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 		f << "	{" << std::endl;
 		f << "		public int chunksReceived;" << std::endl;
 		f << "		public int lastChunkIndex;" << std::endl;
-		f << "		public byte[] buffer = new byte[MaxBigPacketSize];" << std::endl;
+		f << "		public byte[] buffer;" << std::endl;
+		f << "		public MemoryStream stream;" << std::endl;
+		f << "		public BinaryReader reader;" << std::endl;
 		f << "		public long timeout;" << std::endl;
 		f << std::endl;
-		f << "		public void InsertChunk(int chunkIndex, BinaryReader reader)" << std::endl;
+		f << "		public BigPacketReceiver()" << std::endl;
+		f << "		{" << std::endl;
+		f << "			buffer = new byte[MaxBigPacketSize];" << std::endl;
+		f << "			stream = new MemoryStream(buffer);" << std::endl;
+		f << "			reader = new BinaryReader(stream);" << std::endl;
+		f << "		}" << std::endl;
+		f << std::endl;
+		f << "		public void InsertChunk(int chunkIndex, BinaryReader reader, int length)" << std::endl;
 		f << "		{" << std::endl;
 		f << "			++chunksReceived;" << std::endl;
-		f << "			int bytesRead = reader.Read(buffer, chunkIndex * BigPacketChunkSize, BigPacketChunkSize);" << std::endl;
-		f << "			if (bytesRead != BigPacketChunkSize || chunkIndex == MaxBigPacketChunkCount - 1)" << std::endl;
+		f << "			reader.Read(buffer, chunkIndex * BigPacketChunkSize, BigPacketChunkSize);" << std::endl;
+		f << "			if (length != BigPacketChunkSize || chunkIndex == MaxBigPacketChunkCount - 1)" << std::endl;
 		f << "				lastChunkIndex = chunkIndex;" << std::endl;
 		f << "		}" << std::endl;
 		f << std::endl;
@@ -523,6 +533,18 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 
 		f << std::endl;
 
+		f << "	public byte[] sendBuffer;" << std::endl;
+		f << "	public MemoryStream sendStream;" << std::endl;
+		f << "	public BinaryWriter writer;" << std::endl;
+
+		f << std::endl;
+
+		f << "	public byte[] receiveBuffer;" << std::endl;
+		f << "	public MemoryStream receiveStream;" << std::endl;
+		f << "	public BinaryReader reader;" << std::endl;
+
+		f << std::endl;
+
 		f << "	public void Poll()" << std::endl;
 		f << "	{" << std::endl;
 		f << "		while (message_queue.TryDequeue(out Action action)) action();" << std::endl;
@@ -531,16 +553,27 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 		f << "	public void Open(IPEndPoint endpoint)" << std::endl;
 		f << "	{" << std::endl;
 		f << "		client = new UdpClient(endpoint);" << std::endl;
-		f << "		client.Client.ReceiveBufferSize = " << 0x2000000 << ";" << std::endl;
+		f << "		client.Client.ReceiveBufferSize = " << 0x4000000 << ";" << std::endl;
+		f << std::endl;
+		f << "		sendBuffer = new byte[65536];" << std::endl;
+		f << "		sendStream = new MemoryStream(sendBuffer);" << std::endl;
+		f << "		writer = new BinaryWriter(sendStream);" << std::endl;
+		f << std::endl;
+		f << "		receiveBuffer = new byte[65536];" << std::endl;
+		f << "		receiveStream = new MemoryStream(receiveBuffer);" << std::endl;
+		f << "		reader = new BinaryReader(receiveStream);" << std::endl;
 		f << "	}" << std::endl << std::endl;
 
-		f << "	public void Receive()" << std::endl;
+		f << "	public async void Receive()" << std::endl;
 		f << "	{" << std::endl;
-		f << "		client.ReceiveAsync().ContinueWith(task =>" << std::endl;
+		f << "		await Awaitable.BackgroundThreadAsync();" << std::endl;
+		f << std::endl;
+		f << "		while (!Application.exitCancellationToken.IsCancellationRequested)" << std::endl;
 		f << "		{" << std::endl;
-		f << "			Receive();" << std::endl;
-		f << "			Dispatch(task.Result.Buffer, task.Result.RemoteEndPoint);" << std::endl;
-		f << "		});" << std::endl;
+		f << "			int bytesReceived = client.Client.Receive(receiveBuffer.AsSpan());" << std::endl;
+		f << "			receiveStream.Position = 0;" << std::endl;
+		f << "			Dispatch(reader, bytesReceived, endpoint);" << std::endl;
+		f << "		}" << std::endl;
 		f << "	}" << std::endl << std::endl;
 
 		if (can_connect)
@@ -549,13 +582,11 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 
 			f << "	public void Connect(IPEndPoint endpoint)" << std::endl;
 			f << "	{" << std::endl;
-			f << "		MemoryStream stream = new MemoryStream();" << std::endl;
-			f << "		BinaryWriter writer = new BinaryWriter(stream);" << std::endl;
+			f << "		writer.Seek(0, SeekOrigin.Begin);" << std::endl;
 			f << "		writer.Write((byte)0);" << std::endl;
 			f << "		writer.Write(crc);" << std::endl;
 			f << "		writer.Write((byte)0);" << std::endl;
-			f << "		byte[] bytes = stream.ToArray();" << std::endl;
-			f << "		client.SendAsync(bytes, bytes.Length, endpoint);" << std::endl;
+			f << "		client.SendAsync(sendBuffer, (int)writer.Seek(0, SeekOrigin.Current), endpoint);" << std::endl;
 			f << "	}" << std::endl << std::endl;
 		}
 
@@ -568,12 +599,10 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 				{
 					f << "	public void Send(IPEndPoint endpoint, in " << type.first << " message)" << std::endl;
 					f << "	{" << std::endl;
-					f << "		MemoryStream stream = new MemoryStream();" << std::endl;
-					f << "		BinaryWriter writer = new BinaryWriter(stream);" << std::endl;
+					f << "		writer.Seek(0, SeekOrigin.Begin);" << std::endl;
 					f << "		writer.Write((byte)" << std::to_string(message_index) << ");" << std::endl;
 					f << "		message.Serialize(writer);" << std::endl;
-					f << "		byte[] bytes = stream.ToArray();" << std::endl;
-					f << "		client.SendAsync(bytes, bytes.Length, endpoint);" << std::endl;
+					f << "		client.SendAsync(sendBuffer, (int)writer.Seek(0, SeekOrigin.Current), endpoint);" << std::endl;
 					f << "	}" << std::endl << std::endl;
 				}
 				if (type.second.down || type.second.up)
@@ -592,12 +621,10 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 					f << "	{" << std::endl;
 					f << "		if (endpoint == null)" << std::endl; // perhaps there is a better solution?
 					f << "			return;" << std::endl;
-					f << "		MemoryStream stream = new MemoryStream();" << std::endl;
-					f << "		BinaryWriter writer = new BinaryWriter(stream);" << std::endl;
+					f << "		writer.Seek(0, SeekOrigin.Begin);" << std::endl;
 					f << "		writer.Write((byte)" << std::to_string(message_index) << ");" << std::endl;
 					f << "		message.Serialize(writer);" << std::endl;
-					f << "		byte[] bytes = stream.ToArray();" << std::endl;
-					f << "		client.SendAsync(bytes, bytes.Length, endpoint);" << std::endl;
+					f << "		client.SendAsync(sendBuffer, (int)writer.Seek(0, SeekOrigin.Current), endpoint);" << std::endl;
 					f << "	}" << std::endl << std::endl;
 				}
 				if (up && type.second.used_up || down && type.second.used_down)
@@ -628,9 +655,8 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 		}
 
 		{
-			f << "	public void Dispatch(byte[] bytes, IPEndPoint endpoint)" << std::endl;
+			f << "	public void Dispatch(BinaryReader reader, int length, IPEndPoint endpoint)" << std::endl;
 			f << "	{" << std::endl;
-			f << "		BinaryReader reader = new BinaryReader(new MemoryStream(bytes));" << std::endl;
 			f << "		switch (reader.ReadByte())" << std::endl;
 			f << "		{" << std::endl;
 
@@ -646,8 +672,8 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 				f << "					{" << std::endl;
 				if (can_accept)
 				{
-					f << "						MemoryStream stream = new MemoryStream();" << std::endl;
-					f << "						BinaryWriter writer = new BinaryWriter(stream);" << std::endl;
+					f << "						using MemoryStream stream = new();" << std::endl;
+					f << "						using BinaryWriter writer = new(stream);" << std::endl;
 					f << "						writer.Write((byte)0);" << std::endl;
 					f << "						writer.Write(crc);" << std::endl;
 					f << "						writer.Write((byte)1);" << std::endl;
@@ -701,7 +727,6 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 				f << "		{" << std::endl;
 				f << "			byte messageId = reader.ReadByte();" << std::endl;
 				f << "			ushort chunkIndex = reader.ReadUInt16();" << std::endl;
-				f << "			BigPacketReceiver filledReceiver = null;" << std::endl;
 				f << "			lock (allocatedReceivers)" << std::endl;
 				f << "			{" << std::endl;
 				f << "				BigPacketReceiver receiver;" << std::endl;
@@ -716,19 +741,13 @@ void CsGenerator::generate(const std::map<std::string, Structure>& types, const 
 				f << "					receiver.Reset();" << std::endl;
 				f << "					allocatedReceivers[messageId] = receiver;" << std::endl;
 				f << "				}" << std::endl;
-				f << "				receiver.InsertChunk(chunkIndex, reader);" << std::endl;
+				f << "				receiver.InsertChunk(chunkIndex, reader, length - 4);" << std::endl;
 				f << "				if (receiver.Done)" << std::endl;
 				f << "				{" << std::endl;
-				f << "					filledReceiver = receiver;" << std::endl;
+				f << "					receiver.stream.Position = 0;" << std::endl;
+				f << "					Dispatch(receiver.reader, 0, endpoint);" << std::endl;
 				f << "					allocatedReceivers.Remove(messageId);" << std::endl;
-				f << "				}" << std::endl;
-				f << "			}" << std::endl;
-				f << "			if (filledReceiver != null)" << std::endl;
-				f << "			{" << std::endl;
-				f << "				Dispatch(filledReceiver.buffer, endpoint);" << std::endl;
-				f << "				lock (allocatedReceivers)" << std::endl;
-				f << "				{" << std::endl;
-				f << "					receiverPool.Push(filledReceiver);" << std::endl;
+				f << "					receiverPool.Push(receiver);" << std::endl;
 				f << "				}" << std::endl;
 				f << "			}" << std::endl;
 				f << "			break;" << std::endl;

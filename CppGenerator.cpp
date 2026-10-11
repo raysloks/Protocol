@@ -135,7 +135,7 @@ void serializeFieldCpp(std::ofstream& f, Field field, const std::map<std::string
 	}
 }
 
-void deserializeFieldCpp(std::ofstream& f, Field field, const std::map<std::string, Structure>& types)
+void deserializeFieldCpp(std::ofstream& f, Field field, std::map<std::string, Structure>& types)
 {
 	switch (field.special)
 	{
@@ -176,6 +176,8 @@ void deserializeFieldCpp(std::ofstream& f, Field field, const std::map<std::stri
 				f << "		{" << std::endl;
 				f << "			" << field.name << " = std::make_unique<" << translateCpp(child_type_name) << ">();" << std::endl;
 				Field value = field;
+				value.type = &types[child_type_name];
+				value.type_name = child_type_name;
 				value.name = "value";
 				value.special = FS_NONE;
 				if (value.flat())
@@ -184,7 +186,7 @@ void deserializeFieldCpp(std::ofstream& f, Field field, const std::map<std::stri
 				}
 				else
 				{
-					f << "			" << child_type_name << "& value = *" << field.name << ";" << std::endl;
+					f << "			" << child_type_name << "& value = *(" << child_type_name << "*)" << field.name << ".get();" << std::endl;
 					deserializeFieldCpp(f, value, types);
 				}
 				f << "			break;" << std::endl;
@@ -243,7 +245,8 @@ void deserializeFieldCpp(std::ofstream& f, Field field, const std::map<std::stri
 	}
 }
 
-void CppGenerator::generate(const std::map<std::string, Structure>& types, const Protocol& protocol) const
+// TODO reintroduce const correctly
+void CppGenerator::generate(std::map<std::string, Structure>& types, const Protocol& protocol) const
 {
 	auto& destination_path = folder;
 
@@ -536,6 +539,9 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 		f << "// Application should implement this class using the prototypes in HandlerPrototypes.h" << std::endl;
 		f << "#include \"../" << protocol.handler << ".h\"" << std::endl << std::endl;
 
+		f << "#include <thread>" << std::endl << std::endl;
+		f << "#include <zlib.h>" << std::endl << std::endl;
+
 		f << "const uint32_t " << link_name << "::crc = 0x" << std::hex << protocol.crc << ";" << std::endl << std::dec;
 
 		f << "const size_t MAX_SMALL_PACKET_SIZE = " << MAX_SMALL_PACKET_SIZE << ";" << std::endl;
@@ -730,26 +736,32 @@ void CppGenerator::generate(const std::map<std::string, Structure>& types, const
 		{
 			f << "void " << link_name << "::SendBigPacket(const asio::ip::udp::endpoint& endpoint, const std::shared_ptr<asio::streambuf>& buffer)" << std::endl;
 			f << "{" << std::endl;
-			f << "	std::istream is(buffer.get());" << std::endl;
 			f << "	auto it = connections.find(endpoint);" << std::endl;
 			f << "	if (it == connections.end())" << std::endl;
 			f << "		return;" << std::endl;
 			f << "	uint8_t message_id = it->second++;" << std::endl;
-			f << "	for (uint16_t i = 0; i < 65535; ++i)" << std::endl;
+			f << "	std::thread t([message_id, endpoint, buffer, this]()" << std::endl;
 			f << "	{" << std::endl;
-			f << "		std::shared_ptr<asio::streambuf> partial_buffer = std::make_shared<asio::streambuf>();" << std::endl;
-			f << "		std::ostream os(partial_buffer.get());" << std::endl;
-			f << "		std::streamsize chunk_size = buffer->size() - i * BIG_PACKET_CHUNK_SIZE;" << std::endl;
-			f << "		if (chunk_size > BIG_PACKET_CHUNK_SIZE)" << std::endl;
-			f << "			chunk_size = BIG_PACKET_CHUNK_SIZE;" << std::endl;
-			f << "		os.put(255);" << std::endl;
-			f << "		os.write((char*)&message_id, sizeof(message_id));" << std::endl;
-			f << "		os.write((char*)&i, sizeof(i));" << std::endl;
-			f << "		os.write((char*)buffer->data().data() + i * BIG_PACKET_CHUNK_SIZE, chunk_size);" << std::endl;
-			f << "		socket.async_send_to(partial_buffer->data(), endpoint, [partial_buffer](const asio::error_code&, size_t) {});" << std::endl;
-			f << "		if (chunk_size < BIG_PACKET_CHUNK_SIZE)" << std::endl;
-			f << "			break;" << std::endl;
-			f << "	}" << std::endl;
+			f << "		std::istream is(buffer.get());" << std::endl;
+			f << "		for (uint16_t i = 0; i < 65535; ++i)" << std::endl;
+			f << "		{" << std::endl;
+			f << "			std::shared_ptr<asio::streambuf> partial_buffer = std::make_shared<asio::streambuf>();" << std::endl;
+			f << "			std::ostream os(partial_buffer.get());" << std::endl;
+			f << "			std::streamsize chunk_size = buffer->size() - i * BIG_PACKET_CHUNK_SIZE;" << std::endl;
+			f << "			if (chunk_size > BIG_PACKET_CHUNK_SIZE)" << std::endl;
+			f << "				chunk_size = BIG_PACKET_CHUNK_SIZE;" << std::endl;
+			f << "			os.put(255);" << std::endl;
+			f << "			os.write((char*)&message_id, sizeof(message_id));" << std::endl;
+			f << "			os.write((char*)&i, sizeof(i));" << std::endl;
+			f << "			os.write((const char*)buffer->data().data() + i * BIG_PACKET_CHUNK_SIZE, chunk_size);" << std::endl;
+			f << "			socket.async_send_to(partial_buffer->data(), endpoint, [partial_buffer](const asio::error_code&, size_t) {});" << std::endl;
+			f << "			if (chunk_size < BIG_PACKET_CHUNK_SIZE)" << std::endl;
+			f << "				break;" << std::endl;
+			f << "			if (i % 32 == 0);" << std::endl;
+			f << "				std::this_thread::yield();" << std::endl;
+			f << "		}" << std::endl;
+			f << "	});" << std::endl;
+			f << "	t.detach();" << std::endl;
 			f << "}" << std::endl << std::endl;
 		}
 

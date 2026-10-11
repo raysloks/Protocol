@@ -4,5 +4,6 @@ int64 uid
 MpItem item
 vec3 position
 vec3 source
-int64 time
+int64 start_time
+int64 end_time
 bool enabled

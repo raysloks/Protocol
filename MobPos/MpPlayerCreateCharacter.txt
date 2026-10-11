@@ -1,3 +1,4 @@
 up
 string name
+int32 character_class
 MpPlayerAppearance appearance

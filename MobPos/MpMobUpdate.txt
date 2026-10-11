@@ -2,6 +2,7 @@ down
 int64 id
 int64 uid
 MpMobHealthUpdate * hp
+MpMobPowerUpdate * power
 MpPath * path
 MpMobAurasUpdate * auras
 MpMobStateUpdate * state
@@ -11,3 +12,4 @@ MpMobTargetUpdate * target
 MpMobTeamUpdate * team
 MpMobEquipmentUpdate * equipment
 vec3 * facing
+int64 time
